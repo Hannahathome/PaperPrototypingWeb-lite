@@ -8,13 +8,13 @@
   :root {
     color-scheme: light dark;
     --bg: #ffffff; --panel: #f4f4f5; --text: #18181b; --muted: #52525b; --line: #d4d4d8;
-    --accent: #c2410c; --accent-text: #ffffff; --warn: #b45309; --error: #b91c1c;
+    --accent: #c2410c; --accent-text: #ffffff; --note-bg: #fff7ed; --note-line: #ea580c; --error: #b91c1c;
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     line-height: 1.5;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #18181b; --panel: #27272a; --text: #f4f4f5; --muted: #a1a1aa; --line: #3f3f46;
-            --accent: #fb923c; --accent-text: #18181b; --warn: #fbbf24; --error: #f87171; }
+            --accent: #fb923c; --accent-text: #18181b; --note-bg: #431407; --note-line: #fb923c; --error: #f87171; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); }
@@ -23,34 +23,43 @@
   header a.home { color: var(--text); font-weight: 600; text-decoration: none; }
   main { max-width: 76rem; margin: 0 auto; padding: 1rem; }
   h1 { margin: 0.5rem 0; font-size: 1.6rem; }
-  .lead { max-width: 42rem; color: var(--muted); }
+  .lead { max-width: 46rem; margin-top: 0; color: var(--muted); }
 
   .app { display: grid; grid-template-columns: minmax(15rem, 19rem) 1fr; gap: 1.5rem; align-items: start; margin-top: 1rem; }
   @media (max-width: 60rem) { .app { grid-template-columns: 1fr; } }
+  .app [hidden] { display: none !important; }
   .controls { display: grid; gap: 1rem; }
-  fieldset { display: grid; gap: 0.5rem; margin: 0; padding: 0.75rem; border: 1px solid var(--line); border-radius: 0.5rem; }
-  legend { padding: 0 0.25rem; font-weight: 600; }
-  label { display: grid; gap: 0.15rem; font-size: 0.9rem; }
+  fieldset { display: grid; gap: 0.6rem; margin: 0; padding: 0.75rem 1rem 1rem; border: 1px solid var(--line); border-radius: 0.5rem; }
+  legend { padding: 0 0.3rem; font-weight: 600; }
+  label { display: grid; gap: 0.2rem; font-size: 0.9rem; }
   label.check { display: flex; align-items: center; gap: 0.5rem; }
   input, select, button { font: inherit; }
   input[type=number], input[type=text], select {
-    width: 100%; padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 0.25rem;
+    width: 100%; padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: 0.25rem;
     background: var(--bg); color: var(--text);
   }
-  button { padding: 0.45rem 0.9rem; border: 0; border-radius: 0.3rem; background: var(--accent);
-           color: var(--accent-text); font-weight: 600; cursor: pointer; }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  input:disabled { opacity: 0.5; }
+  input[type=file] { font-size: 0.8rem; }
+  .hint { margin: 0; font-size: 0.8rem; color: var(--muted); }
+  #export { padding: 0.5rem 1rem; border: 0; border-radius: 999px; background: var(--accent);
+            color: var(--accent-text); font-weight: 600; cursor: pointer; }
+  #export:disabled { opacity: 0.6; cursor: progress; }
+  #status { margin: 0; font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
 
-  .previews { display: grid; gap: 1rem; min-width: 0; }
-  .preview { border: 1px solid var(--line); border-radius: 0.5rem; background: var(--panel); overflow: hidden; }
-  .preview h2 { margin: 0; padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
-  #sheet svg { display: block; width: 100%; height: auto; background: #ffffff; }
-  #view3d { height: 22rem; }
-  #view3d canvas { display: block; }
-
-  .status { min-height: 1.5em; font-size: 0.9rem; }
-  .status.error { color: var(--error); }
-  .status.warn { color: var(--warn); }
+  .views { display: grid; gap: 1rem; min-width: 0; }
+  .facts { display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 1rem; margin: 0; font-size: 0.9rem; }
+  .facts dt { color: var(--muted); }
+  .facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .notes { padding: 0.6rem 0.9rem; border-left: 3px solid var(--note-line); background: var(--note-bg); font-size: 0.9rem; }
+  .notes p { margin: 0.2rem 0; }
+  figure { margin: 0; }
+  #sheet svg { display: block; width: 100%; height: auto; border: 1px solid var(--line); }
+  #view3d { height: 24rem; border: 1px solid var(--line); background: radial-gradient(circle at 50% 35%, #ffffff, #d9dde3); touch-action: none; }
+  #view3d canvas { display: block; width: 100%; height: 100%; }
+  figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.25rem; margin-top: 0.4rem; font-size: 0.8rem; color: var(--muted); }
+  .key::before { content: ''; display: inline-block; width: 1.5rem; margin-right: 0.4rem; vertical-align: middle; border-top: 2px solid var(--c); }
+  .key.dashed::before { border-top-style: dashed; }
+  button.link { padding: 0; border: 0; background: none; color: var(--accent); text-decoration: underline; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -60,20 +69,71 @@
 </header>
 <main>
   <h1>PaperPhicons</h1>
-  <p class="lead">A paper prism or frustum with 3 to 24 sides, with lids, a colour and images.</p>
+  <p class="lead">
+    A paper prism or frustum with 3 to 24 sides, with lids, a colour and images. Print at <strong>actual size</strong>
+    (100 %, no "fit to page"), then cut the fold file and fold along the dashed lines.
+  </p>
+
   <div class="app">
     <form id="controls" class="controls" onsubmit="return false">
-      <p id="status" class="status">Loading…</p>
+      <fieldset>
+        <legend>Shape</legend>
+        <label>Number of sides (3–24) <input id="sides" type="number" min="3" max="24" step="1" value="6"></label>
+        <label><span id="topLabel">Top diameter, corner to corner (mm)</span> <input id="topDiameter" type="number" min="1" step="0.5" value="50"></label>
+        <label class="check"><input id="lock" type="checkbox" checked> Bottom same as top (prism)</label>
+        <label><span id="bottomLabel">Bottom diameter, corner to corner (mm)</span> <input id="bottomDiameter" type="number" min="1" step="0.5" value="50" disabled></label>
+        <label>Height (mm) <input id="height" type="number" min="1" step="0.5" value="50"></label>
+        <p class="hint">For 4 sides you enter the side length, so 30 gives a 30 × 30 mm square. For any other number of sides you enter the diameter of the circle through the corners.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Lids</legend>
+        <label class="check"><input id="topLidOn" type="checkbox" checked> Top lid</label>
+        <label class="check"><input id="bottomLidOn" type="checkbox" checked> Bottom lid</label>
+        <p class="hint">Without a lid the shape stays open at that end; the glue tabs on the side strip stay.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Colour and images</legend>
+        <label class="check"><input id="fillOn" type="checkbox"> Fill colour <input id="fill" type="color" value="#9ecae1" aria-label="Fill colour"></label>
+        <label>Side image (wraps around all sides) <input id="stripImage" type="file" accept="image/*"></label>
+        <label id="topLidImageField">Top lid image <input id="topLidImage" type="file" accept="image/*"></label>
+        <label id="bottomLidImageField">Bottom lid image <input id="bottomLidImage" type="file" accept="image/*"></label>
+        <p id="imageStatus" class="hint"></p>
+        <button id="clearImages" type="button" class="link" hidden>Remove all images</button>
+        <p class="hint">
+          The side image reads upright on the folded shape. A fill colour prints over images.
+          Images stay on your computer; nothing is uploaded.
+        </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Export</legend>
+        <label>File name <input id="name" type="text" value="paperphicons"></label>
+        <button id="export" type="button">Download PDF + cut files</button>
+        <p id="status" role="status"></p>
+      </fieldset>
     </form>
-    <div class="previews">
-      <section class="preview">
-        <h2>Sheet (A4)</h2>
+
+    <div class="views">
+      <dl id="facts" class="facts"></dl>
+      <div id="notes" class="notes" role="note" hidden></div>
+
+      <figure>
         <div id="sheet"></div>
-      </section>
-      <section class="preview">
-        <h2>3D view</h2>
-        <div id="view3d"></div>
-      </section>
+        <figcaption>
+          <span class="key" style="--c: #d1242f">Cut</span>
+          <span class="key dashed" style="--c: #1f6feb">Fold</span>
+          <span class="key dashed" style="--c: #9aa0a6">Cutting area, 280 × 200 mm</span>
+        </figcaption>
+      </figure>
+
+      <figure>
+        <div id="view3d" aria-label="3D preview of the folded shape. Drag to rotate, scroll to zoom."></div>
+        <figcaption>
+          The folded shape. Drag to rotate, scroll to zoom. <button id="resetView" type="button" class="link">Reset view</button>
+        </figcaption>
+      </figure>
     </div>
   </div>
 </main>
@@ -90,48 +150,1083 @@
 </script>
 
 <script type="module">
-// Setup check (phase 1): proves that jsPDF and three.js load, and shows a placeholder shape in
-// the 3D view. Replaced by the PaperPhicons app in phase 4.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const { jsPDF } = window.jspdf;
-const status = document.getElementById('status');
 
-try {
-  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
-  const [w, h] = [pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight()];
+// =============================================================================================
+// SHARED: print-and-cut basics (same code in paperblox.html and paperphicons.html).
+// Ported from PaperPrototypingWeb src/lib. All geometry is in millimetres, origin top-left of
+// the page, y down. A path is { kind: 'cut' | 'fold' | 'print', points: [[x, y], …], closed?,
+// fill?, colour?, dash?: [dash, gap] }. A sheet is { paths, labels?, images? }.
+// =============================================================================================
 
-  const host = document.getElementById('view3d');
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(window.devicePixelRatio);
-  host.append(renderer.domElement);
+/** A4 landscape, the printed page. */
+const A4 = { width: 297, height: 210 };
+/** Usable vinyl-cutter area; shares its top-left origin with the printed page. */
+const CUT_AREA = { width: 280, height: 200 };
 
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(40, 1, 1, 1000);
-  camera.position.set(60, 50, 80);
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
+/** Fold dash pattern in mm (Processing: 3 mm × FOLD_DASH_SCALE 0.4). */
+const FOLD_DASH = 1.2;
+const FOLD_GAP = 1.2;
 
-  const box = new THREE.Mesh(new THREE.BoxGeometry(30, 30, 30), new THREE.MeshStandardMaterial({ color: 0xf4f4f5 }));
-  box.add(new THREE.LineSegments(new THREE.EdgesGeometry(box.geometry), new THREE.LineBasicMaterial({ color: 0x18181b })));
-  const light = new THREE.DirectionalLight(0xffffff, 2);
-  light.position.set(50, 80, 60);
-  scene.add(box, new THREE.AmbientLight(0xffffff, 1.5), light);
-
-  new ResizeObserver(() => {
-    renderer.setSize(host.clientWidth, host.clientHeight);
-    camera.aspect = host.clientWidth / host.clientHeight;
-    camera.updateProjectionMatrix();
-  }).observe(host);
-  renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
-
-  status.textContent = `Setup OK: three.js r${THREE.REVISION}, jsPDF ${jsPDF.version} (A4 = ${w.toFixed(0)} × ${h.toFixed(0)} mm).`;
-} catch (error) {
-  status.className = 'status error';
-  status.textContent = `Setup failed: ${error instanceof Error ? error.message : String(error)}`;
-  throw error;
+/** Split a line into dashes as Processing's drawDashedLine does: a gap at both ends, last dash shortened. */
+function dashSegments(a, b, dash = FOLD_DASH, gap = FOLD_GAP) {
+  const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  if (length <= 2 * gap) return [];
+  const dx = (b[0] - a[0]) / length;
+  const dy = (b[1] - a[1]) / length;
+  const at = (s) => [a[0] + dx * s, a[1] + dy * s];
+  const dashes = [];
+  for (let pos = gap; pos < length - gap; pos += dash + gap) dashes.push([at(pos), at(Math.min(pos + dash, length - gap))]);
+  return dashes;
 }
+
+/** The straight segments of a path, including the closing segment of a closed path. */
+function segmentsOf(path) {
+  const { points } = path;
+  const segments = [];
+  for (let i = 0; i + 1 < points.length; i++) segments.push([points[i], points[i + 1]]);
+  if (path.closed && points.length > 2) segments.push([points[points.length - 1], points[0]]);
+  return segments;
+}
+
+/** The cutter's view: cut paths unchanged, folds as real dash segments (cutters ignore stroke-dasharray), print dropped. */
+function toCutterPaths(paths) {
+  return paths.flatMap((path) => {
+    if (path.kind === 'cut') return [path];
+    if (path.kind === 'fold') {
+      const [dash, gap] = path.dash ?? [FOLD_DASH, FOLD_GAP];
+      return segmentsOf(path).flatMap(([a, b]) =>
+        dashSegments(a, b, dash, gap).map(([p, q]) => ({ kind: 'fold', points: [p, q], ...(path.colour ? { colour: path.colour } : {}) })),
+      );
+    }
+    return [];
+  });
+}
+
+function boundsOf(paths) {
+  const points = paths.flatMap((path) => path.points);
+  if (points.length === 0) return null;
+  return {
+    minX: Math.min(...points.map((p) => p[0])),
+    minY: Math.min(...points.map((p) => p[1])),
+    maxX: Math.max(...points.map((p) => p[0])),
+    maxY: Math.max(...points.map((p) => p[1])),
+  };
+}
+
+/** True when every cut and fold line lies inside the 280 × 200 mm cutting area. */
+function fitsCutArea(sheet) {
+  const b = boundsOf(sheet.paths.filter((path) => path.kind !== 'print'));
+  if (!b) return true;
+  return b.minX >= 0 && b.minY >= 0 && b.maxX <= CUT_AREA.width && b.maxY <= CUT_AREA.height;
+}
+
+// --- Calibration crosses (Processing drawCalibCrosses / drawCalibCrosses_V) ---
+
+/** Cross centres: 10 mm in from each corner of the cutting area. */
+const CROSS_CENTRES = [[10, 10], [CUT_AREA.width - 10, 10], [10, CUT_AREA.height - 10], [CUT_AREA.width - 10, CUT_AREA.height - 10]];
+const PRINT_CROSS_HALF = 2; // 4 mm across on the print
+const CUT_CROSS_HALF = 10; // 20 mm across in the calibration SVG
+
+function crosses(half, kind) {
+  return CROSS_CENTRES.flatMap(([x, y]) => [
+    { kind, points: [[x, y - half], [x, y + half]] },
+    { kind, points: [[x - half, y], [x + half, y]] },
+  ]);
+}
+const printCrosses = () => crosses(PRINT_CROSS_HALF, 'print');
+const cutCrosses = () => crosses(CUT_CROSS_HALF, 'cut');
+
+// --- SVG in physical millimetres ---
+
+/** Cut and fold line width: 0.5 px at 96 DPI, as Processing's cut files. */
+const CUT_STROKE_MM = (0.5 * 25.4) / 96;
+
+/** At most 4 decimals, no trailing zeros, no "-0". */
+function fmt(value) {
+  const rounded = Number(value.toFixed(4));
+  return Object.is(rounded, -0) ? '0' : String(rounded);
+}
+
+function pathData(path) {
+  const [first, ...rest] = path.points;
+  if (!first) return '';
+  const moves = [`M${fmt(first[0])} ${fmt(first[1])}`, ...rest.map((p) => `L${fmt(p[0])} ${fmt(p[1])}`)];
+  if (path.closed) moves.push('Z');
+  return moves.join(' ');
+}
+
+/** A cutter SVG: width/height in mm and a viewBox in mm, every path stroked black, no fill. */
+function toSvg(paths, { width, height, strokeWidth = CUT_STROKE_MM }) {
+  const body = paths.filter((p) => p.points.length > 1).map((p) => `  <path d="${pathData(p)}"/>`).join('\n');
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${fmt(width)}mm" height="${fmt(height)}mm" viewBox="0 0 ${fmt(width)} ${fmt(height)}">`,
+    `<g fill="none" stroke="#000" stroke-width="${fmt(strokeWidth)}" stroke-linecap="butt" stroke-linejoin="miter">`,
+    body,
+    '</g>',
+    '</svg>',
+    '',
+  ].join('\n');
+}
+
+// --- PDF (A4 landscape, jsPDF in mm) ---
+
+/** Processing draws outlines at 0.5 pt and the calibration crosses at 1 pt. */
+const OUTLINE_WIDTH_MM = 0.5 * (25.4 / 72);
+const CROSS_WIDTH_MM = 1 * (25.4 / 72);
+
+function drawPdfPaths(doc, paths, lineWidth) {
+  doc.setLineWidth(lineWidth);
+  for (const path of paths) {
+    if (path.points.length < 2) continue;
+    doc.setDrawColor(path.colour ?? '#000000');
+    if (path.fill) doc.setFillColor(path.fill);
+    const [first, ...rest] = path.points;
+    doc.moveTo(first[0], first[1]);
+    for (const [x, y] of rest) doc.lineTo(x, y);
+    if (path.closed) doc.close();
+    if (path.fill) doc.fill();
+    else doc.stroke();
+  }
+}
+
+/** The print file: images, print paths, cut and fold lines (folds as the cutter's dashes), labels, crosses. */
+function buildPdf(sheet) {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape', compress: true });
+  doc.setDrawColor('#000000');
+  for (const image of sheet.images ?? []) doc.addImage(image.dataUrl, image.at[0], image.at[1], image.width, image.height);
+  drawPdfPaths(doc, sheet.paths.filter((p) => p.kind === 'print'), OUTLINE_WIDTH_MM);
+  drawPdfPaths(doc, toCutterPaths(sheet.paths), OUTLINE_WIDTH_MM);
+  doc.setTextColor('#000000');
+  for (const label of sheet.labels ?? []) {
+    doc.setFontSize((label.size / 25.4) * 72); // mm → pt
+    doc.text(label.text, label.at[0], label.at[1], { baseline: label.baseline ?? 'alphabetic', align: label.align ?? 'left' });
+  }
+  drawPdfPaths(doc, printCrosses(), CROSS_WIDTH_MM);
+  return doc;
+}
+
+// --- The three-file export: <name>_<stamp>.pdf, <name>_fold_<stamp>.svg, <name>_calib_<stamp>.svg ---
+
+/** Stamp M_D_H_MM_SS, e.g. 25 September 14:05:09 → "9_25_14_05_09". */
+function exportStamp(date) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return [date.getMonth() + 1, date.getDate(), date.getHours(), pad(date.getMinutes()), pad(date.getSeconds())].join('_');
+}
+
+/** Characters that are invalid in file names become "-"; empty → "result", as in Processing. */
+function sanitiseName(name) {
+  const cleaned = name.trim().replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').replace(/\s+/g, ' ');
+  return cleaned === '' ? 'result' : cleaned;
+}
+
+function buildExportFiles(sheet, name, date = new Date()) {
+  const base = sanitiseName(name);
+  const stamp = exportStamp(date);
+  const svgBlob = (text) => new Blob([text], { type: 'image/svg+xml' });
+  return [
+    { name: `${base}_${stamp}.pdf`, blob: buildPdf(sheet).output('blob') },
+    { name: `${base}_fold_${stamp}.svg`, blob: svgBlob(toSvg(toCutterPaths(sheet.paths), CUT_AREA)) },
+    // Processing draws the cut crosses at 1 px (96 DPI).
+    { name: `${base}_calib_${stamp}.svg`, blob: svgBlob(toSvg(cutCrosses(), { ...CUT_AREA, strokeWidth: (1 * 25.4) / 96 })) },
+  ];
+}
+
+/** Save files one after another; browsers may block rapid multiple downloads. */
+async function downloadAll(files) {
+  for (const file of files) {
+    const url = URL.createObjectURL(file.blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.name;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+}
+
+// --- On-screen sheet preview (display only; exports use the SVG and PDF code above) ---
+
+const PREVIEW_COLOURS = { cut: '#d1242f', fold: '#1f6feb', print: '#444444', cutArea: '#9aa0a6' };
+
+const escapeXml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const stroke = (colour, widthPx, extra = '') =>
+  `fill="none" stroke="${colour}" stroke-width="${widthPx}" vector-effect="non-scaling-stroke" ${extra}`.trim();
+const pathElement = (path, style) => `<path d="${pathData(path)}" ${style}/>`;
+
+function previewSvg(sheet, title) {
+  const parts = [];
+  for (const image of sheet.images ?? []) {
+    parts.push(`<image href="${image.dataUrl}" x="${fmt(image.at[0])}" y="${fmt(image.at[1])}" width="${fmt(image.width)}" height="${fmt(image.height)}" preserveAspectRatio="none"/>`);
+  }
+  for (const p of sheet.paths.filter((p) => p.kind === 'print')) parts.push(pathElement(p, p.fill ? `fill="${p.fill}" stroke="none"` : stroke(PREVIEW_COLOURS.print, 1)));
+  for (const p of sheet.paths.filter((p) => p.kind === 'fold')) parts.push(pathElement(p, stroke(PREVIEW_COLOURS.fold, 1.5, 'stroke-dasharray="3 3"')));
+  for (const p of sheet.paths.filter((p) => p.kind === 'cut')) parts.push(pathElement(p, stroke(PREVIEW_COLOURS.cut, 1.5)));
+  for (const label of sheet.labels ?? []) {
+    parts.push(
+      `<text x="${fmt(label.at[0])}" y="${fmt(label.at[1])}" font-size="${fmt(label.size)}" font-family="Helvetica, Arial, sans-serif" fill="#000"` +
+        `${label.align === 'center' ? ' text-anchor="middle"' : ''}${label.baseline === 'middle' ? ' dominant-baseline="middle"' : ''}>${escapeXml(label.text)}</text>`,
+    );
+  }
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.width} ${A4.height}" role="img" aria-label="${escapeXml(title)}">`,
+    `<rect x="0" y="0" width="${A4.width}" height="${A4.height}" fill="#ffffff"/>`,
+    ...parts,
+    `<rect x="0" y="0" width="${CUT_AREA.width}" height="${CUT_AREA.height}" ${stroke(PREVIEW_COLOURS.cutArea, 1, 'stroke-dasharray="4 3"')}/>`,
+    ...printCrosses().map((p) => pathElement(p, stroke(PREVIEW_COLOURS.print, 1))),
+    ...cutCrosses().map((p) => pathElement(p, stroke(PREVIEW_COLOURS.cut, 1, 'stroke-opacity="0.35"'))),
+    '</svg>',
+  ].join('\n');
+}
+
+// =============================================================================================
+// CORE: PaperPhicons prism / frustum net. Pure functions, millimetres, no DOM.
+// Ported from PaperPrototypingWeb src/tools/paperpolyhedra/core (params, net, solid, artwork),
+// which matches Processing's PaperPolyhedra. Tab depth, flap depth and flap taper are fixed.
+// =============================================================================================
+
+// --- Inputs and derived dimensions (UI.pde applyToModel, Param.pde setParams) ---
+
+/** Fixed in the lite version: the full version's defaults. */
+const TAB_DEPTH = 10;
+const FLAP_DEPTH = 5;
+const FLAP_TAPER = 5;
+const MAX_SIDES = 24;
+
+/** Tab neck as a fraction of tab depth: strip tabs, lid tabs and the hook tab. */
+const STRIP_TAB_NECK_RATIO = 0.8;
+const LID_TAB_NECK_RATIO = 0.2;
+const HOOK_NECK_RATIO = 0.2;
+/** The hook tab's barb offset, −1 mm at Processing's cut-file scale (72/96). */
+const HOOK_OFFSET_MM = -1 * (72 / 96);
+/** Pattern origin on the page (Processing patX, patY). */
+const PATTERN_ORIGIN = [10, 20];
+
+/** Perimeter from the "diameter" input: the side length for 4 sides, otherwise corner to corner. */
+function perimeterFromDiameter(sides, diameter) {
+  const d = Math.max(1, diameter);
+  return sides === 4 ? 4 * d : sides * d * Math.sin(Math.PI / sides);
+}
+const circumradius = (sides, side) => side / 2 / Math.sin(Math.PI / sides);
+const apothem = (sides, side) => side / (2 * Math.tan(Math.PI / sides));
+
+/** Validate inputs the way the Processing UI does (min 1 mm), with sides limited to 3–24. */
+function normaliseInput(input) {
+  return {
+    sides: Math.min(MAX_SIDES, Math.max(3, Math.round(input.sides))),
+    topDiameter: Math.max(1, input.topDiameter),
+    bottomDiameter: Math.max(1, input.bottomDiameter),
+    height: Math.max(1, input.height),
+    tabDepth: Math.max(0, input.tabDepth),
+    flapDepth: Math.max(0, input.flapDepth),
+    flapTaper: Math.max(0, input.flapTaper),
+  };
+}
+
+/**
+ * Derived dimensions. panelHeight is √(h² + (bottom side − top side)²), exactly as Processing;
+ * for a frustum that is not the true slant height, so it folds to foldedHeight, not height.
+ */
+function shapeDims(raw) {
+  const input = normaliseInput(raw);
+  const n = input.sides;
+  const topPerimeter = perimeterFromDiameter(n, input.topDiameter);
+  const bottomPerimeter = perimeterFromDiameter(n, input.bottomDiameter);
+  const topSide = topPerimeter / n;
+  const bottomSide = bottomPerimeter / n;
+  const panelHeight = Math.hypot(input.height, bottomSide - topSide);
+  const apothemDiff = apothem(n, bottomSide) - apothem(n, topSide);
+  const foldedHeight = Math.sqrt(Math.max(0, panelHeight ** 2 - apothemDiff ** 2));
+  return {
+    sides: n,
+    topPerimeter,
+    bottomPerimeter,
+    topSide,
+    bottomSide,
+    height: input.height,
+    panelHeight,
+    foldedHeight,
+    // Clamped as in setParams().
+    tabDepth: Math.min(input.tabDepth, topSide * 0.5, bottomSide * 0.5, panelHeight * 0.5),
+    flapDepth: Math.min(input.flapDepth, topSide * 0.5, bottomSide * 0.5),
+    flapTaper: input.flapTaper > panelHeight * 0.33 ? panelHeight * 0.33 : input.flapTaper,
+  };
+}
+
+// --- The net (tools.pde, api.pde) ---
+
+/** 2D affine transform with Processing's translate/rotate semantics. */
+class Frame {
+  constructor(c = 1, s = 0, tx = 0, ty = 0) { Object.assign(this, { c, s, tx, ty }); }
+  apply([x, y]) { return [this.c * x - this.s * y + this.tx, this.s * x + this.c * y + this.ty]; }
+  translate(dx, dy) {
+    this.tx += this.c * dx - this.s * dy;
+    this.ty += this.s * dx + this.c * dy;
+    return this;
+  }
+  rotate(angle) {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    [this.c, this.s] = [this.c * cos - this.s * sin, this.s * cos + this.c * sin];
+    return this;
+  }
+}
+
+const vAdd = (a, b) => [a[0] + b[0], a[1] + b[1]];
+const vSub = (a, b) => [a[0] - b[0], a[1] - b[1]];
+const vScale = (a, k) => [a[0] * k, a[1] * k];
+const vUnit = (a) => vScale(a, 1 / Math.hypot(a[0], a[1]));
+
+/** A shape-local path builder that maps points through a frame. Fold lines keep Processing's direction. */
+class Pen {
+  constructor(frame) { this.frame = frame; this.paths = []; }
+  cut(...points) { this.paths.push({ kind: 'cut', points: points.map((p) => this.frame.apply(p)) }); }
+  fold(from, to) { this.paths.push({ kind: 'fold', points: [this.frame.apply(from), this.frame.apply(to)] }); }
+}
+
+/** Bottom-edge tab on the right half of the edge (drawBottomTabContour). */
+function bottomTab(pen, b, depth, inset, flare, neck) {
+  pen.fold([b, 0], [2 * inset, 0]);
+  pen.cut([b, 0], [b, -neck], [b - flare, -depth], [2 * inset + flare, -depth], [2 * inset, -neck], [2 * inset, 0], [0, 0]);
+}
+
+/** Top-edge tab on the left half of the edge (drawTopTabContour). */
+function topTab(pen, x, h, t, depth, inset, flare, neck) {
+  const end = x + t - 2 * inset;
+  pen.fold([x, h], [end, h]);
+  pen.cut([x, h], [x, h + neck], [x + flare, h + depth], [end - flare, h + depth], [end, h + neck], [end, h], [x + t, h]);
+}
+
+/** Glue flap on the first panel's left edge, with a slit for the hook (drawLeftSlantFlap). */
+function leftFlap(pen, p1, p4, depth, taper, inset) {
+  const edge = vSub(p1, p4);
+  const e = vUnit(edge);
+  const perp = vScale(vUnit([edge[1], -edge[0]]), depth);
+  const p1Inset = vSub(p1, vScale(e, inset));
+  const p4Inset = vAdd(p4, vScale(e, inset));
+  const p1Flap = vSub(vAdd(p1, perp), vScale(e, taper));
+  const p4Flap = vAdd(vAdd(p4, perp), vScale(e, taper));
+  pen.fold(p4, p4Inset);
+  pen.cut(p4Inset, p1Inset);
+  pen.fold(p1Inset, p1);
+  pen.cut(p4, p4Flap, p1Flap, p1);
+}
+
+/** Hook tab on the last panel's right edge (drawRightSlantFlap). */
+function rightHook(pen, p2, p3, depth, inset, flare, neck, hookOffset) {
+  const e = vUnit(vSub(p3, p2));
+  const p2Inset = vAdd(p2, vScale(e, inset));
+  const p3Inset = vSub(p3, vScale(e, inset));
+  const insetEdge = vSub(p3Inset, p2Inset);
+  const perp = vUnit([insetEdge[1], -insetEdge[0]]);
+  const p2Rect = vAdd(p2Inset, vScale(perp, depth));
+  const p3Rect = vAdd(p3Inset, vScale(perp, depth));
+  const p2Neck = vAdd(p2Inset, vScale(perp, neck));
+  const p3Neck = vAdd(p3Inset, vScale(perp, neck));
+  const neckDir = vUnit(vSub(p3Neck, p2Neck));
+  const p2Hook = vAdd(p2Neck, vScale(neckDir, hookOffset));
+  const p3Hook = vSub(p3Neck, vScale(neckDir, hookOffset));
+  const outerDir = vUnit(vSub(p3Rect, p2Rect));
+  const p2Flap = vAdd(p2Rect, vScale(outerDir, flare));
+  const p3Flap = vSub(p3Rect, vScale(outerDir, flare));
+  pen.fold(p3Inset, p2Inset);
+  pen.cut(p3, p3Inset, p3Hook, p3Flap, p2Flap, p2Hook, p2Inset, p2);
+}
+
+/** Rotation between consecutive panels so their slanted edges meet. */
+const panelRotation = (t, b, h) => Math.atan2(h, (t - b) / 2) - Math.atan2(h, (b - t) / 2);
+
+/** The side strip at the origin: paths, panel corners (bl, br, tr, tl) and height without tabs. */
+function buildStrip(d) {
+  const { sides: n, topSide: t, bottomSide: b, panelHeight: h, tabDepth } = d;
+  const offset = (b - t) / 2;
+  const rotation = panelRotation(t, b, h);
+  const insetBottom = b / 4;
+  const insetTop = t / 4;
+  const insetSide = h / 4;
+  const pen = new Pen(new Frame());
+  const panels = [];
+  let height = h;
+  for (let k = 0; k < n; k++) {
+    const corners = [pen.frame.apply([0, 0]), pen.frame.apply([b, 0]), pen.frame.apply([offset + t, h]), pen.frame.apply([offset, h])];
+    panels.push({ corners });
+    height = Math.max(height, ...corners.map((p) => p[1]));
+    bottomTab(pen, b, tabDepth, insetBottom, insetBottom / 3, tabDepth * STRIP_TAB_NECK_RATIO);
+    topTab(pen, offset, h, t, tabDepth, insetTop, insetTop / 3, tabDepth * STRIP_TAB_NECK_RATIO);
+    if (k === 0) leftFlap(pen, [0, 0], [offset, h], d.flapDepth, d.flapTaper, insetSide);
+    if (k === n - 1) rightHook(pen, [b, 0], [offset + t, h], d.flapDepth, insetSide, insetSide / 3, tabDepth * HOOK_NECK_RATIO, HOOK_OFFSET_MM);
+    if (k < n - 1) {
+      pen.fold([b, 0], [offset + t, h]);
+      pen.frame.translate(b, 0).rotate(rotation);
+    }
+  }
+  return { paths: pen.paths, panels, height };
+}
+
+/** Bounding box of a lid including its tabs (getPolygonLidDimensions). */
+function lidDimensions(sides, side, tabDepth) {
+  const r = circumradius(sides, side);
+  const step = (2 * Math.PI) / sides;
+  const start = -Math.PI / 2 - step / 2;
+  const xs = [];
+  const ys = [];
+  for (let i = 0; i < sides; i++) {
+    xs.push(Math.cos(start + i * step) * r);
+    ys.push(Math.sin(start + i * step) * r);
+  }
+  return { width: Math.max(...xs) - Math.min(...xs) + 2 * tabDepth, height: Math.max(...ys) - Math.min(...ys) + 2 * tabDepth };
+}
+
+/** A lid with tabs on every side, its box's top-left at `origin` (drawPolygonLid). */
+function buildLid(sides, side, tabDepth, origin) {
+  const r = circumradius(sides, side);
+  const step = (2 * Math.PI) / sides;
+  const a = r * Math.cos(step / 2);
+  const half = a + tabDepth;
+  const centre = [origin[0] + half, origin[1] + half];
+  const inset = side / 4;
+  const flare = inset / 3;
+  const neck = tabDepth * LID_TAB_NECK_RATIO;
+  const paths = [];
+  const corners = [];
+  for (let i = 0; i < sides; i++) {
+    const pen = new Pen(new Frame().translate(centre[0], centre[1]).rotate(i * step).translate(0, -a));
+    const s2 = side / 2;
+    pen.fold([-s2 + 2 * inset, 0], [s2, 0]);
+    pen.cut([-s2, 0], [-s2 + 2 * inset, 0], [-s2 + 2 * inset, -neck], [-s2 + 2 * inset + flare, -tabDepth], [s2 - flare, -tabDepth], [s2, -neck], [s2, 0]);
+    paths.push(...pen.paths);
+    corners.push(pen.frame.apply([-s2, 0]));
+  }
+  return { paths, lid: { centre, corners } };
+}
+
+const translatePaths = (paths, [dx, dy]) => paths.map((path) => ({ ...path, points: path.points.map(([x, y]) => [x + dx, y + dy]) }));
+
+/**
+ * The complete net, laid out as Processing lays it out. Lite addition: `lids` leaves the top
+ * and/or bottom lid off the sheet; everything else (the strip with its tabs, the other lid's
+ * position) stays where it is.
+ */
+function buildNet(input, lids = { top: true, bottom: true }) {
+  const dims = shapeDims(input);
+  const { sides: n, topSide, bottomSide, tabDepth } = dims;
+  const strip = buildStrip(dims);
+  const bottomBox = lidDimensions(n, bottomSide, tabDepth);
+  const topBox = lidDimensions(n, topSide, tabDepth);
+  const extra = Math.max(0, topBox.height - bottomBox.height);
+  const lidSpacing = Math.max(strip.height * 1.25, strip.height + tabDepth + extra + 2);
+  const bottom = buildLid(n, bottomSide, tabDepth, [0, lidSpacing]);
+  const top = buildLid(n, topSide, tabDepth, [bottomBox.width, lidSpacing + bottomBox.height - topBox.height]);
+
+  const origin = PATTERN_ORIGIN;
+  const move = (p) => [p[0] + origin[0], p[1] + origin[1]];
+  const moveLid = (lid) => ({ centre: move(lid.centre), corners: lid.corners.map(move) });
+  const paths = [...strip.paths, ...(lids.bottom ? bottom.paths : []), ...(lids.top ? top.paths : [])];
+  const sheet = { paths: translatePaths(paths, origin) };
+  return {
+    dims,
+    lids,
+    sheet,
+    panels: strip.panels.map((panel) => ({ corners: panel.corners.map(move) })),
+    bottomLid: moveLid(bottom.lid),
+    topLid: moveLid(top.lid),
+    fitsCutArea: fitsCutArea(sheet),
+  };
+}
+
+// --- Placement on the sheet (from the full version's core/layout.ts) ---
+// The calibration crosses are cut through the same sheet, with arms reaching 20 mm in from each
+// corner of the cutting area, so the net must stay out of those corners. Processing's position
+// often reaches into the top-left one; the full version lets you drag the net away, the lite
+// version moves it to the first free spot (top left, clear of the corners) instead.
+
+/** Space kept from the cutting area's edge; corner squares kept clear of the crosses. */
+const ARRANGE_GAP = 3;
+const CROSS_ZONE = 22;
+
+const insideCutArea = (b) => b.minX >= 0 && b.minY >= 0 && b.maxX <= CUT_AREA.width && b.maxY <= CUT_AREA.height;
+const boundsOverlap = (a, b) => a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY;
+
+function touchesCrossZone(b) {
+  const { width: W, height: H } = CUT_AREA;
+  const z = CROSS_ZONE;
+  return [
+    { minX: 0, minY: 0, maxX: z, maxY: z },
+    { minX: W - z, minY: 0, maxX: W, maxY: z },
+    { minX: 0, minY: H - z, maxX: z, maxY: H },
+    { minX: W - z, minY: H - z, maxX: W, maxY: H },
+  ].some((c) => boundsOverlap(b, c));
+}
+
+/** Bounds of everything the cutter touches (cut and fold lines, tabs included). */
+const netBounds = (net) => boundsOf(net.sheet.paths.filter((p) => p.kind !== 'print'));
+
+/** A net moved by `offset` mm: every path, panel and lid. */
+function translateNet(net, [dx, dy]) {
+  const move = ([x, y]) => [x + dx, y + dy];
+  const lid = (l) => ({ centre: move(l.centre), corners: l.corners.map(move) });
+  const sheet = { ...net.sheet, paths: translatePaths(net.sheet.paths, [dx, dy]) };
+  return {
+    ...net,
+    sheet,
+    panels: net.panels.map((p) => ({ corners: p.corners.map(move) })),
+    bottomLid: lid(net.bottomLid),
+    topLid: lid(net.topLid),
+    fitsCutArea: fitsCutArea(sheet),
+  };
+}
+
+/**
+ * The net at its first free spot (left edge + gap, just below the top cross corners), when it
+ * fits there clear of all four cross corners; otherwise where Processing puts it.
+ */
+function placeNet(net) {
+  const b = netBounds(net);
+  const [x, y] = [ARRANGE_GAP, CROSS_ZONE];
+  const box = { minX: x, minY: y, maxX: x + b.maxX - b.minX, maxY: y + b.maxY - b.minY };
+  if (!insideCutArea(box) || touchesCrossZone(box)) return net;
+  return translateNet(net, [x - b.minX, y - b.minY]);
+}
+
+// --- The folded shape in 3D (z up, bottom rim at z = 0, uses the folded height) ---
+
+function foldedSolid(d) {
+  const n = d.sides;
+  const rb = circumradius(n, d.bottomSide);
+  const rt = circumradius(n, d.topSide);
+  const step = (2 * Math.PI) / n;
+  const start = -Math.PI / 2 - step / 2; // panel 0 faces the viewer (−y)
+  const ring = (r, z) => Array.from({ length: n }, (_, i) => [r * Math.cos(start + i * step), r * Math.sin(start + i * step), z]);
+  return { bottom: ring(rb, 0), top: ring(rt, d.foldedHeight), height: d.foldedHeight };
+}
+
+// --- Colour and images (texturesnew.pde, textures_triangles.pde, color_fill.pde) ---
+// Textured triangles in page mm with image coordinates (u across, v down, 0–1); the UI
+// rasterises them. Image row 0 lands on the model's bottom rim, as in Processing.
+
+/** Processing's tessellation density; the strip uses half of it. */
+const TESSELLATION_DENSITY = 16;
+const STRIP_DENSITY = Math.max(2, TESSELLATION_DENSITY / 2);
+
+const lerp = (a, b, t) => a + (b - a) * t;
+
+/** Bilinear point in a panel: u along the edges (left → right), v from bottom rim to top rim. */
+function panelPoint({ corners: [bl, br, tr, tl] }, u, v) {
+  const bottom = [lerp(bl[0], br[0], u), lerp(bl[1], br[1], u)];
+  const top = [lerp(tl[0], tr[0], u), lerp(tl[1], tr[1], u)];
+  return [lerp(bottom[0], top[0], v), lerp(bottom[1], top[1], v)];
+}
+
+/** One image across the whole strip: each panel gets an equal share of the image width. */
+function stripTriangles(panels) {
+  const n = panels.length;
+  const d = STRIP_DENSITY;
+  const slot = { kind: 'strip' };
+  const triangles = [];
+  panels.forEach((panel, i) => {
+    const u0 = i / n;
+    const u1 = (i + 1) / n;
+    for (let row = 0; row < d; row++) {
+      for (let col = 0; col < d; col++) {
+        const [a0, a1, b0, b1] = [col / d, (col + 1) / d, row / d, (row + 1) / d];
+        const p00 = panelPoint(panel, a0, b0);
+        const p10 = panelPoint(panel, a1, b0);
+        const p01 = panelPoint(panel, a0, b1);
+        const p11 = panelPoint(panel, a1, b1);
+        const uv = (a, b) => [lerp(u0, u1, a), b];
+        triangles.push({ slot, points: [p00, p10, p01], uvs: [uv(a0, b0), uv(a1, b0), uv(a0, b1)] });
+        triangles.push({ slot, points: [p10, p11, p01], uvs: [uv(a1, b0), uv(a1, b1), uv(a0, b1)] });
+      }
+    }
+  });
+  return triangles;
+}
+
+/** A lid image: the disc inscribed in the image, drawn as a disc of the lid's circumradius. */
+function lidTriangles(lid, aspect, slot, density = TESSELLATION_DENSITY) {
+  const n = lid.corners.length;
+  const radius = Math.hypot(lid.corners[0][0] - lid.centre[0], lid.corners[0][1] - lid.centre[1]);
+  const step = (2 * Math.PI) / n;
+  const su = Math.min(1, 1 / aspect) / 2;
+  const sv = Math.min(1, aspect) / 2;
+  const at = (angle, r) => ({
+    p: [lid.centre[0] + Math.cos(angle) * r * radius, lid.centre[1] + Math.sin(angle) * r * radius],
+    uv: [0.5 + Math.cos(angle) * r * su, 0.5 + Math.sin(angle) * r * sv],
+  });
+  const triangles = [];
+  for (let side = 0; side < n; side++) {
+    for (let ring = 0; ring < density; ring++) {
+      const [r0, r1] = [ring / density, (ring + 1) / density];
+      for (let arc = 0; arc < density; arc++) {
+        const a0 = lerp(side * step, (side + 1) * step, arc / density);
+        const a1 = lerp(side * step, (side + 1) * step, (arc + 1) / density);
+        const [v00, v10, v01, v11] = [at(a0, r0), at(a1, r0), at(a0, r1), at(a1, r1)];
+        triangles.push({ slot, points: [v00.p, v10.p, v01.p], uvs: [v00.uv, v10.uv, v01.uv] });
+        triangles.push({ slot, points: [v10.p, v11.p, v01.p], uvs: [v10.uv, v11.uv, v01.uv] });
+      }
+    }
+  }
+  return triangles;
+}
+
+/** Filled print paths for the panels and the lids that are on the sheet. */
+function fillPaths(net, colour) {
+  const lids = [...(net.lids.bottom ? [net.bottomLid] : []), ...(net.lids.top ? [net.topLid] : [])];
+  return [
+    ...net.panels.map((panel) => ({ kind: 'print', closed: true, fill: colour, points: [...panel.corners] })),
+    ...lids.map((lid) => ({ kind: 'print', closed: true, fill: colour, points: [...lid.corners] })),
+  ];
+}
+
+/**
+ * Fills and textured triangles. Lite change: lid images work on their own (Processing prints
+ * them only together with a side image), and only on lids that are on the sheet.
+ */
+function buildArtwork(net, { fill = null, strip = false, topLidAspect = null, bottomLidAspect = null }) {
+  const triangles = [];
+  if (strip) triangles.push(...stripTriangles(net.panels));
+  if (bottomLidAspect && net.lids.bottom) triangles.push(...lidTriangles(net.bottomLid, bottomLidAspect, { kind: 'bottomLid' }));
+  if (topLidAspect && net.lids.top) triangles.push(...lidTriangles(net.topLid, topLidAspect, { kind: 'topLid' }));
+  return { fills: fill ? fillPaths(net, fill) : [], triangles };
+}
+
+// =============================================================================================
+// UI: rasterising images (browser only). Triangles in page mm + image coordinates are drawn
+// onto a canvas: at 300 DPI for the print (as Processing), at a low DPI for the preview.
+// Ported from PaperPrototypingWeb src/lib/raster.ts.
+// =============================================================================================
+
+const PRINT_DPI = 300;
+const PREVIEW_DPI = 60;
+const mmToPx = (mm, dpi) => (mm / 25.4) * dpi;
+const sizeOf = (image) => ('naturalWidth' in image ? [image.naturalWidth, image.naturalHeight] : [image.width, image.height]);
+
+/** Affine map sending source points s0..s2 to destination points d0..d2, as canvas setTransform args. */
+function affineFromTriangles(s, d) {
+  const [[x0, y0], [x1, y1], [x2, y2]] = s;
+  const det = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+  if (Math.abs(det) < 1e-12) return null;
+  const [[u0, v0], [u1, v1], [u2, v2]] = d;
+  const a = ((u1 - u0) * (y2 - y0) - (u2 - u0) * (y1 - y0)) / det;
+  const c = ((u2 - u0) * (x1 - x0) - (u1 - u0) * (x2 - x0)) / det;
+  const b = ((v1 - v0) * (y2 - y0) - (v2 - v0) * (y1 - y0)) / det;
+  const dd = ((v2 - v0) * (x1 - x0) - (v1 - v0) * (x2 - x0)) / det;
+  return [a, b, c, dd, u0 - a * x0 - c * y0, v0 - b * x0 - dd * y0];
+}
+
+/** Grow a triangle slightly around its centroid so neighbouring triangles overlap and no seams show. */
+function grow(points, by) {
+  const cx = (points[0][0] + points[1][0] + points[2][0]) / 3;
+  const cy = (points[0][1] + points[1][1] + points[2][1]) / 3;
+  return points.map(([x, y]) => {
+    const dx = x - cx;
+    const dy = y - cy;
+    const len = Math.hypot(dx, dy) || 1;
+    return [x + (dx / len) * by, y + (dy / len) * by];
+  });
+}
+
+/** Rasterise triangles within `bounds` (page mm) at `dpi`. White background unless `transparent`. */
+function rasteriseTriangles(triangles, bounds, dpi, transparent) {
+  const width = bounds.maxX - bounds.minX;
+  const height = bounds.maxY - bounds.minY;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.ceil(mmToPx(width, dpi)));
+  canvas.height = Math.max(1, Math.ceil(mmToPx(height, dpi)));
+  const ctx = canvas.getContext('2d');
+  if (!transparent) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  ctx.imageSmoothingQuality = 'high';
+  const scale = mmToPx(1, dpi);
+  const toCanvas = ([x, y]) => [(x - bounds.minX) * scale, (y - bounds.minY) * scale];
+  for (const triangle of triangles) {
+    const [w, h] = sizeOf(triangle.image);
+    const dest = triangle.points.map(toCanvas);
+    const src = triangle.uvs.map(([u, v]) => [u * w, v * h]);
+    const m = affineFromTriangles(src, dest);
+    if (!m) continue;
+    const clip = grow(dest, 0.6);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(clip[0][0], clip[0][1]);
+    ctx.lineTo(clip[1][0], clip[1][1]);
+    ctx.lineTo(clip[2][0], clip[2][1]);
+    ctx.closePath();
+    ctx.clip();
+    ctx.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
+    ctx.drawImage(triangle.image, 0, 0);
+    ctx.restore();
+  }
+  return { canvas, at: [bounds.minX, bounds.minY], width, height };
+}
+
+/** The printable sheet: fills, the net, and images rasterised at `dpi`, clipped to the page. */
+function printableSheet(net, art, imageFor, dpi) {
+  const triangles = art.triangles.flatMap((t) => {
+    const image = imageFor(t.slot);
+    return image ? [{ points: t.points, uvs: t.uvs, image }] : [];
+  });
+  const forPrint = dpi === PRINT_DPI;
+  let images = [];
+  if (triangles.length) {
+    const xs = triangles.flatMap((t) => t.points.map((p) => p[0]));
+    const ys = triangles.flatMap((t) => t.points.map((p) => p[1]));
+    const page = {
+      minX: Math.max(0, Math.min(...xs) - 1),
+      minY: Math.max(0, Math.min(...ys) - 1),
+      maxX: Math.min(A4.width, Math.max(...xs) + 1),
+      maxY: Math.min(A4.height, Math.max(...ys) + 1),
+    };
+    if (page.maxX > page.minX && page.maxY > page.minY) {
+      const r = rasteriseTriangles(triangles, page, dpi, !forPrint);
+      // JPEG keeps 300 DPI pages small; paper is white anyway.
+      images = [{ dataUrl: r.canvas.toDataURL(forPrint ? 'image/jpeg' : 'image/png', 0.92), at: r.at, width: r.width, height: r.height }];
+    }
+  }
+  return { paths: [...art.fills, ...net.sheet.paths], images };
+}
+
+// =============================================================================================
+// UI: 3D preview of the folded shape (three.js). Display only; image placement mirrors the
+// artwork code above, so the preview shows what prints.
+// =============================================================================================
+
+const PAPER = '#f4f1ea';
+const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+
+/** A triangle mesh from positions (mm, z up) and UVs (v down), converted to three's (y up, v up). */
+function meshGeometry(positions, uvs) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions.flatMap(([x, y, z]) => [x, z, -y]), 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs.flatMap(([u, v]) => [u, 1 - v]), 2));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+class ShapeView3D {
+  constructor(container) {
+    this.container = container;
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(35, 1, 1, 5000);
+    this.group = new THREE.Group();
+    this.textures = new Map();
+    this.framed = false;
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    container.append(this.renderer.domElement);
+    this.scene.add(new THREE.HemisphereLight('#ffffff', '#8a8a8a', 2.2));
+    const sun = new THREE.DirectionalLight('#ffffff', 1.6);
+    sun.position.set(1, 2, 1.5);
+    this.scene.add(sun, this.group);
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.addEventListener('change', () => this.render());
+    new ResizeObserver(() => this.resize()).observe(container);
+    this.resize();
+  }
+
+  texture(source) {
+    let texture = this.textures.get(source);
+    if (!texture) {
+      texture = new THREE.Texture(source);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.needsUpdate = true;
+      this.textures.set(source, texture);
+    }
+    return texture;
+  }
+
+  material(fill, image) {
+    if (fill) return new THREE.MeshStandardMaterial({ color: fill, roughness: 0.9, side: THREE.DoubleSide });
+    if (image) return new THREE.MeshStandardMaterial({ color: '#ffffff', map: this.texture(image), roughness: 0.9, side: THREE.DoubleSide });
+    return new THREE.MeshStandardMaterial({ color: PAPER, roughness: 0.9, side: THREE.DoubleSide });
+  }
+
+  /** look: { fill, strip, topLid, bottomLid } (images or null); lids: { top, bottom }. */
+  update(dims, look, lids) {
+    for (const child of [...this.group.children]) {
+      this.group.remove(child);
+      child.geometry?.dispose();
+      child.material?.dispose();
+    }
+    const solid = foldedSolid(dims);
+    const n = dims.sides;
+
+    // Net panel k ↔ face (n − k) mod n, so panel 0 faces the viewer and the strip runs the way
+    // it folds with the printed side out. Corner map: net bottom-left = bottom[i+1].
+    for (let k = 0; k < n; k++) {
+      const i = (n - k) % n;
+      const j = (i + 1) % n;
+      const corners = { bl: solid.bottom[j], br: solid.bottom[i], tr: solid.top[i], tl: solid.top[j] };
+      const at = (u, v) => lerp3(lerp3(corners.bl, corners.br, u), lerp3(corners.tl, corners.tr, u), v);
+      const positions = [];
+      const uvs = [];
+      if (look.strip) {
+        const d = STRIP_DENSITY;
+        for (let row = 0; row < d; row++) {
+          for (let col = 0; col < d; col++) {
+            const [a0, a1, b0, b1] = [col / d, (col + 1) / d, row / d, (row + 1) / d];
+            const uv = (a, b) => [(k + a) / n, b];
+            positions.push(at(a0, b0), at(a1, b0), at(a0, b1), at(a1, b0), at(a1, b1), at(a0, b1));
+            uvs.push(uv(a0, b0), uv(a1, b0), uv(a0, b1), uv(a1, b0), uv(a1, b1), uv(a0, b1));
+          }
+        }
+      } else {
+        positions.push(corners.tl, corners.tr, corners.bl, corners.tr, corners.br, corners.bl);
+        uvs.push([0, 1], [1, 1], [0, 0], [1, 1], [1, 0], [0, 0]);
+      }
+      this.group.add(new THREE.Mesh(meshGeometry(positions, uvs), this.material(look.fill, look.strip)));
+    }
+
+    // Lids: the image disc as printed, seen from outside (top from above, bottom from below).
+    const lid = (ring, image, top) => {
+      const centre = [0, 0, ring[0][2]];
+      const radius = Math.hypot(ring[0][0], ring[0][1]);
+      const [w, h] = image ? sizeOf(image) : [1, 1];
+      const aspect = (w || 1) / (h || 1);
+      const su = Math.min(1, 1 / aspect) / 2;
+      const sv = Math.min(1, aspect) / 2;
+      const positions = [];
+      const uvs = [];
+      const d = TESSELLATION_DENSITY;
+      for (let s = 0; s < n; s++) {
+        const a = ring[s];
+        const b = ring[(s + 1) % n];
+        for (let step = 0; step < d; step++) {
+          const p = lerp3(a, b, step / d);
+          const q = lerp3(a, b, (step + 1) / d);
+          const uv = ([x, y]) => [0.5 + (x / radius) * su, 0.5 + ((top ? -y : y) / radius) * sv];
+          if (top) positions.push(centre, p, q);
+          else positions.push(centre, q, p);
+          uvs.push(uv(centre), ...(top ? [uv(p), uv(q)] : [uv(q), uv(p)]));
+        }
+      }
+      this.group.add(new THREE.Mesh(meshGeometry(positions, uvs), this.material(look.fill, image)));
+    };
+    if (lids.bottom) lid(solid.bottom, look.bottomLid, false);
+    if (lids.top) lid(solid.top, look.topLid, true);
+
+    // Fold edges.
+    const edges = [];
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      edges.push(solid.bottom[i], solid.bottom[j], solid.top[i], solid.top[j], solid.bottom[i], solid.top[i]);
+    }
+    const edgeGeometry = new THREE.BufferGeometry();
+    edgeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(edges.flatMap(([x, y, z]) => [x, z, -y]), 3));
+    this.group.add(new THREE.LineSegments(edgeGeometry, new THREE.LineBasicMaterial({ color: '#3a3a3a' })));
+
+    this.group.position.y = -solid.height / 2;
+    if (!this.framed) {
+      this.framed = true;
+      const distance = Math.max(solid.height, ...solid.bottom.map((p) => Math.hypot(p[0], p[1]) * 2)) * 3.4;
+      this.camera.position.set(distance * 0.55, distance * 0.45, distance * 0.7);
+      this.controls.target.set(0, 0, 0);
+      this.controls.update();
+    }
+    this.render();
+  }
+
+  reset() { this.framed = false; }
+
+  resize() {
+    const { clientWidth: w, clientHeight: h } = this.container;
+    if (w === 0 || h === 0) return;
+    this.renderer.setSize(w, h, false);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    this.render();
+  }
+
+  // Must not call controls.update(): that fires 'change', which calls render().
+  render() { this.renderer.render(this.scene, this.camera); }
+}
+
+// =============================================================================================
+// UI: the form, previews and export.
+// =============================================================================================
+
+const $ = (id) => document.getElementById(id);
+const num = (id) => Number($(id).value);
+const mm = (value) => `${value.toFixed(1)} mm`;
+const view = new ShapeView3D($('view3d'));
+const images = { strip: null, topLid: null, bottomLid: null };
+
+/**
+ * The side image turned 180°. The net maps image row 0 to the bottom rim, which would put the
+ * image upside down on the folded shape; turned, it reads upright. (The full version leaves this
+ * to a "turn upside down" checkbox; the lite version always turns it.)
+ */
+const rotatedCache = new Map();
+function turned(source) {
+  if (!source) return source;
+  let copy = rotatedCache.get(source);
+  if (!copy) {
+    const [w, h] = sizeOf(source);
+    copy = document.createElement('canvas');
+    copy.width = w;
+    copy.height = h;
+    const ctx = copy.getContext('2d');
+    ctx.translate(w, h);
+    ctx.rotate(Math.PI);
+    ctx.drawImage(source, 0, 0);
+    rotatedCache.set(source, copy);
+  }
+  return copy;
+}
+
+const aspectOf = (image) => {
+  if (!image) return null;
+  const [w, h] = sizeOf(image);
+  return w / h;
+};
+
+function readForm() {
+  const sides = Math.min(MAX_SIDES, Math.max(3, Math.round(num('sides')) || 3));
+  const lock = $('lock').checked;
+  const top = num('topDiameter');
+  if (lock) $('bottomDiameter').value = String(top);
+  $('bottomDiameter').disabled = lock;
+  const what = sides === 4 ? 'side length' : 'diameter, corner to corner';
+  $('topLabel').textContent = `Top ${what} (mm)`;
+  $('bottomLabel').textContent = `Bottom ${what} (mm)`;
+  return {
+    input: {
+      sides,
+      topDiameter: top,
+      bottomDiameter: lock ? top : num('bottomDiameter'),
+      height: num('height'),
+      tabDepth: TAB_DEPTH,
+      flapDepth: FLAP_DEPTH,
+      flapTaper: FLAP_TAPER,
+    },
+    lids: { top: $('topLidOn').checked, bottom: $('bottomLidOn').checked },
+    fill: $('fillOn').checked ? $('fill').value : null,
+  };
+}
+
+/** The sheet for the current form at `dpi`. */
+function buildSheet(form, dpi) {
+  const net = placeNet(buildNet(form.input, form.lids));
+  const art = buildArtwork(net, {
+    fill: form.fill,
+    strip: !!images.strip,
+    topLidAspect: aspectOf(images.topLid),
+    bottomLidAspect: aspectOf(images.bottomLid),
+  });
+  const imageFor = (slot) => (slot.kind === 'strip' ? turned(images.strip) : images[slot.kind]);
+  return { net, sheet: printableSheet(net, art, imageFor, dpi) };
+}
+
+function showImageFields(form) {
+  $('topLidImageField').hidden = !form.lids.top;
+  $('bottomLidImageField').hidden = !form.lids.bottom;
+  const have = [images.strip && 'side', form.lids.top && images.topLid && 'top lid', form.lids.bottom && images.bottomLid && 'bottom lid'].filter(Boolean);
+  $('imageStatus').textContent = have.length ? `Images on this shape: ${have.join(', ')}.` : '';
+  $('clearImages').hidden = !(images.strip || images.topLid || images.bottomLid);
+}
+
+function update() {
+  const form = readForm();
+  showImageFields(form);
+  const { net, sheet } = buildSheet(form, PREVIEW_DPI);
+  const d = net.dims;
+  $('facts').innerHTML = [
+    ['Perimeter, top / bottom', `${mm(d.topPerimeter)} / ${mm(d.bottomPerimeter)}`],
+    ['Side length, top / bottom', `${mm(d.topSide)} / ${mm(d.bottomSide)}`],
+    ['Panel height on the net', mm(d.panelHeight)],
+    ['Folds to a height of', mm(d.foldedHeight)],
+  ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+
+  const notes = [];
+  if (!net.fitsCutArea) {
+    notes.push('<strong>Part of the net lies outside the 280 × 200 mm cutting area</strong>, so the cutter will not cut all of it. Make the shape smaller, or switch a lid off.');
+  } else if (touchesCrossZone(netBounds(net))) {
+    notes.push('<strong>The net reaches a corner where a calibration cross is cut.</strong> Make the shape a little smaller, or switch a lid off.');
+  }
+  if (Math.abs(d.foldedHeight - d.height) > 0.05) {
+    notes.push(`This frustum folds to <strong>${mm(d.foldedHeight)}</strong>, not the ${mm(d.height)} you entered, because of how the frustum panels are built.`);
+  }
+  const clamped = [];
+  if (d.tabDepth < TAB_DEPTH - 1e-9) clamped.push(`tab depth to ${mm(d.tabDepth)}`);
+  if (d.flapDepth < FLAP_DEPTH - 1e-9) clamped.push(`flap depth to ${mm(d.flapDepth)}`);
+  if (d.flapTaper < FLAP_TAPER - 1e-9) clamped.push(`flap taper to ${mm(d.flapTaper)}`);
+  if (clamped.length) notes.push(`Limited ${clamped.join(', ')} to fit the panels.`);
+  $('notes').innerHTML = notes.map((n) => `<p>${n}</p>`).join('');
+  $('notes').hidden = notes.length === 0;
+
+  $('sheet').innerHTML = previewSvg(sheet, 'PaperPhicons sheet preview');
+  view.update(d, {
+    fill: form.fill,
+    strip: turned(images.strip),
+    topLid: images.topLid,
+    bottomLid: images.bottomLid,
+  }, form.lids);
+}
+
+let timer;
+const schedule = () => { clearTimeout(timer); timer = setTimeout(update, 120); };
+$('controls').addEventListener('input', schedule);
+$('controls').addEventListener('change', schedule);
+$('resetView').addEventListener('click', () => { view.reset(); update(); });
+
+async function loadImage(file) {
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error ?? new Error('Could not read the file.'));
+    reader.readAsDataURL(file);
+  });
+  const image = new Image();
+  image.src = dataUrl;
+  await image.decode();
+  return image;
+}
+
+for (const [field, slot] of [['stripImage', 'strip'], ['topLidImage', 'topLid'], ['bottomLidImage', 'bottomLid']]) {
+  $(field).addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      images[slot] = await loadImage(file);
+      $('status').textContent = '';
+    } catch {
+      $('status').textContent = 'That file could not be read as an image.';
+    }
+    update();
+  });
+}
+$('clearImages').addEventListener('click', () => {
+  images.strip = images.topLid = images.bottomLid = null;
+  for (const id of ['stripImage', 'topLidImage', 'bottomLidImage']) $(id).value = '';
+  update();
+});
+
+$('export').addEventListener('click', async () => {
+  const button = $('export');
+  button.disabled = true;
+  $('status').textContent = 'Preparing files…';
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 20)); // let the status paint
+    const { sheet } = buildSheet(readForm(), PRINT_DPI);
+    const files = buildExportFiles(sheet, $('name').value);
+    await downloadAll(files);
+    $('status').textContent = `Downloaded ${files.map((f) => f.name).join(', ')}.`;
+  } catch (error) {
+    $('status').textContent = `Something went wrong: ${error instanceof Error ? error.message : String(error)}`;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+update();
 </script>
 </body>
 </html>
