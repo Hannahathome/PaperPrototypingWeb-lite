@@ -8,13 +8,13 @@
   :root {
     color-scheme: light dark;
     --bg: #ffffff; --panel: #f4f4f5; --text: #18181b; --muted: #52525b; --line: #d4d4d8;
-    --accent: #c2410c; --accent-text: #ffffff; --warn: #b45309; --error: #b91c1c;
+    --accent: #c2410c; --accent-text: #ffffff; --note-bg: #fff7ed; --note-line: #ea580c; --error: #b91c1c;
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     line-height: 1.5;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #18181b; --panel: #27272a; --text: #f4f4f5; --muted: #a1a1aa; --line: #3f3f46;
-            --accent: #fb923c; --accent-text: #18181b; --warn: #fbbf24; --error: #f87171; }
+            --accent: #fb923c; --accent-text: #18181b; --note-bg: #431407; --note-line: #fb923c; --error: #f87171; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); }
@@ -23,34 +23,40 @@
   header a.home { color: var(--text); font-weight: 600; text-decoration: none; }
   main { max-width: 76rem; margin: 0 auto; padding: 1rem; }
   h1 { margin: 0.5rem 0; font-size: 1.6rem; }
-  .lead { max-width: 42rem; color: var(--muted); }
+  .lead { max-width: 46rem; margin-top: 0; color: var(--muted); }
 
   .app { display: grid; grid-template-columns: minmax(15rem, 19rem) 1fr; gap: 1.5rem; align-items: start; margin-top: 1rem; }
   @media (max-width: 60rem) { .app { grid-template-columns: 1fr; } }
+  .app [hidden] { display: none !important; }
   .controls { display: grid; gap: 1rem; }
-  fieldset { display: grid; gap: 0.5rem; margin: 0; padding: 0.75rem; border: 1px solid var(--line); border-radius: 0.5rem; }
-  legend { padding: 0 0.25rem; font-weight: 600; }
-  label { display: grid; gap: 0.15rem; font-size: 0.9rem; }
-  label.check { display: flex; align-items: center; gap: 0.5rem; }
+  fieldset { display: grid; gap: 0.6rem; margin: 0; padding: 0.75rem 1rem 1rem; border: 1px solid var(--line); border-radius: 0.5rem; }
+  legend { padding: 0 0.3rem; font-weight: 600; }
+  label { display: grid; gap: 0.2rem; font-size: 0.9rem; }
   input, select, button { font: inherit; }
   input[type=number], input[type=text], select {
-    width: 100%; padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 0.25rem;
+    width: 100%; padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: 0.25rem;
     background: var(--bg); color: var(--text);
   }
-  button { padding: 0.45rem 0.9rem; border: 0; border-radius: 0.3rem; background: var(--accent);
-           color: var(--accent-text); font-weight: 600; cursor: pointer; }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .hint { margin: 0; font-size: 0.8rem; color: var(--muted); }
+  #export { padding: 0.5rem 1rem; border: 0; border-radius: 999px; background: var(--accent);
+            color: var(--accent-text); font-weight: 600; cursor: pointer; }
+  #export:disabled { opacity: 0.6; cursor: not-allowed; }
+  #status { margin: 0; font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
 
-  .previews { display: grid; gap: 1rem; min-width: 0; }
-  .preview { border: 1px solid var(--line); border-radius: 0.5rem; background: var(--panel); overflow: hidden; }
-  .preview h2 { margin: 0; padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
-  #sheet svg { display: block; width: 100%; height: auto; background: #ffffff; }
-  #view3d { height: 22rem; }
-  #view3d canvas { display: block; }
-
-  .status { min-height: 1.5em; font-size: 0.9rem; }
-  .status.error { color: var(--error); }
-  .status.warn { color: var(--warn); }
+  .views { display: grid; gap: 1rem; min-width: 0; }
+  .facts { display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 1rem; margin: 0; font-size: 0.9rem; }
+  .facts dt { color: var(--muted); }
+  .facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .notes { padding: 0.6rem 0.9rem; border-left: 3px solid var(--note-line); background: var(--note-bg); font-size: 0.9rem; }
+  .notes p { margin: 0.2rem 0; }
+  figure { margin: 0; }
+  #sheet svg { display: block; width: 100%; height: auto; border: 1px solid var(--line); }
+  #view3d { height: 24rem; border: 1px solid var(--line); background: radial-gradient(circle at 50% 35%, #ffffff, #d9dde3); touch-action: none; }
+  #view3d canvas { display: block; width: 100%; height: 100%; }
+  figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.25rem; margin-top: 0.4rem; font-size: 0.8rem; color: var(--muted); }
+  .key::before { content: ''; display: inline-block; width: 1.5rem; margin-right: 0.4rem; vertical-align: middle; border-top: 2px solid var(--c); }
+  .key.dashed::before { border-top-style: dashed; }
+  button.link { padding: 0; border: 0; background: none; color: var(--accent); text-decoration: underline; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -60,20 +66,62 @@
 </header>
 <main>
   <h1>PaperBlox</h1>
-  <p class="lead">A paper block with an ArUco marker, so a camera can recognise and track it.</p>
+  <p class="lead">
+    A paper block (cuboid) with an ArUco marker, so a camera can recognise and track it. Each copy gets the next
+    marker id. Print at <strong>actual size</strong> (100 %, no "fit to page"): detection depends on the marker
+    being printed exactly.
+  </p>
+
   <div class="app">
     <form id="controls" class="controls" onsubmit="return false">
-      <p id="status" class="status">Loading…</p>
+      <fieldset>
+        <legend>Block</legend>
+        <label>Width (mm) <input id="width" type="number" min="1" max="100" step="1" value="30"></label>
+        <label>Length (mm) <input id="length" type="number" min="1" max="100" step="1" value="30"></label>
+        <label>Height (mm) <input id="height" type="number" min="1" max="100" step="1" value="30"></label>
+        <label>Copies <input id="copies" type="number" min="1" max="16" step="1" value="1"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Marker</legend>
+        <label>First marker id (0–1023) <input id="firstMarkerId" type="number" min="0" max="1023" step="1" value="48"></label>
+        <label>Marker size (mm) <input id="markerSize" type="number" min="5" max="50" step="1" value="16"></label>
+        <label>Marker on
+          <select id="markerFace">
+            <option value="base" selected>Top (width × length)</option>
+            <option value="side">Side (height × length)</option>
+          </select>
+        </label>
+        <p class="hint">The size is the black square. A white margin of one cell (size ÷ 7) is added around it; keep it clear.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Export</legend>
+        <label>File name <input id="name" type="text" value="paperblox"></label>
+        <button id="export" type="button">Download PDF + cut files</button>
+        <p id="status" role="status"></p>
+      </fieldset>
     </form>
-    <div class="previews">
-      <section class="preview">
-        <h2>Sheet (A4)</h2>
+
+    <div class="views">
+      <dl id="facts" class="facts"></dl>
+      <div id="notes" class="notes" role="note" hidden></div>
+
+      <figure>
         <div id="sheet"></div>
-      </section>
-      <section class="preview">
-        <h2>3D view</h2>
-        <div id="view3d"></div>
-      </section>
+        <figcaption>
+          <span class="key" style="--c: #d1242f">Cut</span>
+          <span class="key dashed" style="--c: #1f6feb">Fold</span>
+          <span class="key dashed" style="--c: #9aa0a6">Cutting area, 280 × 200 mm</span>
+        </figcaption>
+      </figure>
+
+      <figure>
+        <div id="view3d" aria-label="3D preview of the first block. Drag to rotate, scroll to zoom."></div>
+        <figcaption>
+          The first block, folded. Drag to rotate, scroll to zoom. <button id="resetView" type="button" class="link">Reset view</button>
+        </figcaption>
+      </figure>
     </div>
   </div>
 </main>
@@ -90,48 +138,559 @@
 </script>
 
 <script type="module">
-// Setup check (phase 1): proves that jsPDF and three.js load, and shows a placeholder block in
-// the 3D view. Replaced by the PaperBlox app in phase 3.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const { jsPDF } = window.jspdf;
-const status = document.getElementById('status');
 
-try {
-  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
-  const [w, h] = [pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight()];
+// =============================================================================================
+// SHARED: print-and-cut basics (same code in paperphicons.html).
+// Ported from PaperPrototypingWeb src/lib. All geometry is in millimetres, origin top-left of
+// the page, y down. A path is { kind: 'cut' | 'fold' | 'print', points: [[x, y], …], closed?,
+// fill?, colour?, dash?: [dash, gap] }. A sheet is { paths, labels?, images? }.
+// =============================================================================================
 
-  const host = document.getElementById('view3d');
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(window.devicePixelRatio);
-  host.append(renderer.domElement);
+/** A4 landscape, the printed page. */
+const A4 = { width: 297, height: 210 };
+/** Usable vinyl-cutter area; shares its top-left origin with the printed page. */
+const CUT_AREA = { width: 280, height: 200 };
 
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(40, 1, 1, 1000);
-  camera.position.set(60, 50, 80);
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
+/** Fold dash pattern in mm (Processing: 3 mm × FOLD_DASH_SCALE 0.4). */
+const FOLD_DASH = 1.2;
+const FOLD_GAP = 1.2;
 
-  const box = new THREE.Mesh(new THREE.BoxGeometry(30, 30, 30), new THREE.MeshStandardMaterial({ color: 0xf4f4f5 }));
-  box.add(new THREE.LineSegments(new THREE.EdgesGeometry(box.geometry), new THREE.LineBasicMaterial({ color: 0x18181b })));
-  const light = new THREE.DirectionalLight(0xffffff, 2);
-  light.position.set(50, 80, 60);
-  scene.add(box, new THREE.AmbientLight(0xffffff, 1.5), light);
-
-  new ResizeObserver(() => {
-    renderer.setSize(host.clientWidth, host.clientHeight);
-    camera.aspect = host.clientWidth / host.clientHeight;
-    camera.updateProjectionMatrix();
-  }).observe(host);
-  renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
-
-  status.textContent = `Setup OK: three.js r${THREE.REVISION}, jsPDF ${jsPDF.version} (A4 = ${w.toFixed(0)} × ${h.toFixed(0)} mm).`;
-} catch (error) {
-  status.className = 'status error';
-  status.textContent = `Setup failed: ${error instanceof Error ? error.message : String(error)}`;
-  throw error;
+/** Split a line into dashes as Processing's drawDashedLine does: a gap at both ends, last dash shortened. */
+function dashSegments(a, b, dash = FOLD_DASH, gap = FOLD_GAP) {
+  const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  if (length <= 2 * gap) return [];
+  const dx = (b[0] - a[0]) / length;
+  const dy = (b[1] - a[1]) / length;
+  const at = (s) => [a[0] + dx * s, a[1] + dy * s];
+  const dashes = [];
+  for (let pos = gap; pos < length - gap; pos += dash + gap) dashes.push([at(pos), at(Math.min(pos + dash, length - gap))]);
+  return dashes;
 }
+
+/** The straight segments of a path, including the closing segment of a closed path. */
+function segmentsOf(path) {
+  const { points } = path;
+  const segments = [];
+  for (let i = 0; i + 1 < points.length; i++) segments.push([points[i], points[i + 1]]);
+  if (path.closed && points.length > 2) segments.push([points[points.length - 1], points[0]]);
+  return segments;
+}
+
+/** The cutter's view: cut paths unchanged, folds as real dash segments (cutters ignore stroke-dasharray), print dropped. */
+function toCutterPaths(paths) {
+  return paths.flatMap((path) => {
+    if (path.kind === 'cut') return [path];
+    if (path.kind === 'fold') {
+      const [dash, gap] = path.dash ?? [FOLD_DASH, FOLD_GAP];
+      return segmentsOf(path).flatMap(([a, b]) =>
+        dashSegments(a, b, dash, gap).map(([p, q]) => ({ kind: 'fold', points: [p, q], ...(path.colour ? { colour: path.colour } : {}) })),
+      );
+    }
+    return [];
+  });
+}
+
+function boundsOf(paths) {
+  const points = paths.flatMap((path) => path.points);
+  if (points.length === 0) return null;
+  return {
+    minX: Math.min(...points.map((p) => p[0])),
+    minY: Math.min(...points.map((p) => p[1])),
+    maxX: Math.max(...points.map((p) => p[0])),
+    maxY: Math.max(...points.map((p) => p[1])),
+  };
+}
+
+/** True when every cut and fold line lies inside the 280 × 200 mm cutting area. */
+function fitsCutArea(sheet) {
+  const b = boundsOf(sheet.paths.filter((path) => path.kind !== 'print'));
+  if (!b) return true;
+  return b.minX >= 0 && b.minY >= 0 && b.maxX <= CUT_AREA.width && b.maxY <= CUT_AREA.height;
+}
+
+// --- Calibration crosses (Processing drawCalibCrosses / drawCalibCrosses_V) ---
+
+/** Cross centres: 10 mm in from each corner of the cutting area. */
+const CROSS_CENTRES = [[10, 10], [CUT_AREA.width - 10, 10], [10, CUT_AREA.height - 10], [CUT_AREA.width - 10, CUT_AREA.height - 10]];
+const PRINT_CROSS_HALF = 2; // 4 mm across on the print
+const CUT_CROSS_HALF = 10; // 20 mm across in the calibration SVG
+
+function crosses(half, kind) {
+  return CROSS_CENTRES.flatMap(([x, y]) => [
+    { kind, points: [[x, y - half], [x, y + half]] },
+    { kind, points: [[x - half, y], [x + half, y]] },
+  ]);
+}
+const printCrosses = () => crosses(PRINT_CROSS_HALF, 'print');
+const cutCrosses = () => crosses(CUT_CROSS_HALF, 'cut');
+
+// --- SVG in physical millimetres ---
+
+/** Cut and fold line width: 0.5 px at 96 DPI, as Processing's cut files. */
+const CUT_STROKE_MM = (0.5 * 25.4) / 96;
+
+/** At most 4 decimals, no trailing zeros, no "-0". */
+function fmt(value) {
+  const rounded = Number(value.toFixed(4));
+  return Object.is(rounded, -0) ? '0' : String(rounded);
+}
+
+function pathData(path) {
+  const [first, ...rest] = path.points;
+  if (!first) return '';
+  const moves = [`M${fmt(first[0])} ${fmt(first[1])}`, ...rest.map((p) => `L${fmt(p[0])} ${fmt(p[1])}`)];
+  if (path.closed) moves.push('Z');
+  return moves.join(' ');
+}
+
+/** A cutter SVG: width/height in mm and a viewBox in mm, every path stroked black, no fill. */
+function toSvg(paths, { width, height, strokeWidth = CUT_STROKE_MM }) {
+  const body = paths.filter((p) => p.points.length > 1).map((p) => `  <path d="${pathData(p)}"/>`).join('\n');
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${fmt(width)}mm" height="${fmt(height)}mm" viewBox="0 0 ${fmt(width)} ${fmt(height)}">`,
+    `<g fill="none" stroke="#000" stroke-width="${fmt(strokeWidth)}" stroke-linecap="butt" stroke-linejoin="miter">`,
+    body,
+    '</g>',
+    '</svg>',
+    '',
+  ].join('\n');
+}
+
+// --- PDF (A4 landscape, jsPDF in mm) ---
+
+/** Processing draws outlines at 0.5 pt and the calibration crosses at 1 pt. */
+const OUTLINE_WIDTH_MM = 0.5 * (25.4 / 72);
+const CROSS_WIDTH_MM = 1 * (25.4 / 72);
+
+function drawPdfPaths(doc, paths, lineWidth) {
+  doc.setLineWidth(lineWidth);
+  for (const path of paths) {
+    if (path.points.length < 2) continue;
+    doc.setDrawColor(path.colour ?? '#000000');
+    if (path.fill) doc.setFillColor(path.fill);
+    const [first, ...rest] = path.points;
+    doc.moveTo(first[0], first[1]);
+    for (const [x, y] of rest) doc.lineTo(x, y);
+    if (path.closed) doc.close();
+    if (path.fill) doc.fill();
+    else doc.stroke();
+  }
+}
+
+/** The print file: images, print paths, cut and fold lines (folds as the cutter's dashes), labels, crosses. */
+function buildPdf(sheet) {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape', compress: true });
+  doc.setDrawColor('#000000');
+  for (const image of sheet.images ?? []) doc.addImage(image.dataUrl, image.at[0], image.at[1], image.width, image.height);
+  drawPdfPaths(doc, sheet.paths.filter((p) => p.kind === 'print'), OUTLINE_WIDTH_MM);
+  drawPdfPaths(doc, toCutterPaths(sheet.paths), OUTLINE_WIDTH_MM);
+  doc.setTextColor('#000000');
+  for (const label of sheet.labels ?? []) {
+    doc.setFontSize((label.size / 25.4) * 72); // mm → pt
+    doc.text(label.text, label.at[0], label.at[1], { baseline: label.baseline ?? 'alphabetic', align: label.align ?? 'left' });
+  }
+  drawPdfPaths(doc, printCrosses(), CROSS_WIDTH_MM);
+  return doc;
+}
+
+// --- The three-file export: <name>_<stamp>.pdf, <name>_fold_<stamp>.svg, <name>_calib_<stamp>.svg ---
+
+/** Stamp M_D_H_MM_SS, e.g. 25 September 14:05:09 → "9_25_14_05_09". */
+function exportStamp(date) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return [date.getMonth() + 1, date.getDate(), date.getHours(), pad(date.getMinutes()), pad(date.getSeconds())].join('_');
+}
+
+/** Characters that are invalid in file names become "-"; empty → "result", as in Processing. */
+function sanitiseName(name) {
+  const cleaned = name.trim().replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').replace(/\s+/g, ' ');
+  return cleaned === '' ? 'result' : cleaned;
+}
+
+function buildExportFiles(sheet, name, date = new Date()) {
+  const base = sanitiseName(name);
+  const stamp = exportStamp(date);
+  const svgBlob = (text) => new Blob([text], { type: 'image/svg+xml' });
+  return [
+    { name: `${base}_${stamp}.pdf`, blob: buildPdf(sheet).output('blob') },
+    { name: `${base}_fold_${stamp}.svg`, blob: svgBlob(toSvg(toCutterPaths(sheet.paths), CUT_AREA)) },
+    // Processing draws the cut crosses at 1 px (96 DPI).
+    { name: `${base}_calib_${stamp}.svg`, blob: svgBlob(toSvg(cutCrosses(), { ...CUT_AREA, strokeWidth: (1 * 25.4) / 96 })) },
+  ];
+}
+
+/** Save files one after another; browsers may block rapid multiple downloads. */
+async function downloadAll(files) {
+  for (const file of files) {
+    const url = URL.createObjectURL(file.blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.name;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+}
+
+// --- On-screen sheet preview (display only; exports use the SVG and PDF code above) ---
+
+const PREVIEW_COLOURS = { cut: '#d1242f', fold: '#1f6feb', print: '#444444', cutArea: '#9aa0a6' };
+
+const escapeXml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const stroke = (colour, widthPx, extra = '') =>
+  `fill="none" stroke="${colour}" stroke-width="${widthPx}" vector-effect="non-scaling-stroke" ${extra}`.trim();
+const pathElement = (path, style) => `<path d="${pathData(path)}" ${style}/>`;
+
+function previewSvg(sheet, title) {
+  const parts = [];
+  for (const image of sheet.images ?? []) {
+    parts.push(`<image href="${image.dataUrl}" x="${fmt(image.at[0])}" y="${fmt(image.at[1])}" width="${fmt(image.width)}" height="${fmt(image.height)}" preserveAspectRatio="none"/>`);
+  }
+  for (const p of sheet.paths.filter((p) => p.kind === 'print')) parts.push(pathElement(p, p.fill ? `fill="${p.fill}" stroke="none"` : stroke(PREVIEW_COLOURS.print, 1)));
+  for (const p of sheet.paths.filter((p) => p.kind === 'fold')) parts.push(pathElement(p, stroke(PREVIEW_COLOURS.fold, 1.5, 'stroke-dasharray="3 3"')));
+  for (const p of sheet.paths.filter((p) => p.kind === 'cut')) parts.push(pathElement(p, stroke(PREVIEW_COLOURS.cut, 1.5)));
+  for (const label of sheet.labels ?? []) {
+    parts.push(
+      `<text x="${fmt(label.at[0])}" y="${fmt(label.at[1])}" font-size="${fmt(label.size)}" font-family="Helvetica, Arial, sans-serif" fill="#000"` +
+        `${label.align === 'center' ? ' text-anchor="middle"' : ''}${label.baseline === 'middle' ? ' dominant-baseline="middle"' : ''}>${escapeXml(label.text)}</text>`,
+    );
+  }
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.width} ${A4.height}" role="img" aria-label="${escapeXml(title)}">`,
+    `<rect x="0" y="0" width="${A4.width}" height="${A4.height}" fill="#ffffff"/>`,
+    ...parts,
+    `<rect x="0" y="0" width="${CUT_AREA.width}" height="${CUT_AREA.height}" ${stroke(PREVIEW_COLOURS.cutArea, 1, 'stroke-dasharray="4 3"')}/>`,
+    ...printCrosses().map((p) => pathElement(p, stroke(PREVIEW_COLOURS.print, 1))),
+    ...cutCrosses().map((p) => pathElement(p, stroke(PREVIEW_COLOURS.cut, 1, 'stroke-opacity="0.35"'))),
+    '</svg>',
+  ].join('\n');
+}
+
+// =============================================================================================
+// CORE: PaperBlox block net with an ArUco marker. Pure functions, millimetres, no DOM.
+// Ported from PaperPrototypingWeb src/tools/paperphicons/core (block.ts, aruco.ts), which matches
+// Processing's PaperPhicons.pde. The net is a tray (base W × L, walls H, diagonal corner gussets)
+// with a lid hinged on the right wall, its flaps and glue flap inset by the paper thickness.
+// =============================================================================================
+
+/** ArUco "original" dictionary (OpenCV DICT_ARUCO_ORIGINAL): 1024 markers, 5 × 5 bits. */
+const ARUCO_ORIGINAL_SIZE = 1024;
+/** Each row carries 2 bits of the id (most significant row first) as one of four 5-bit words; 1 = white. */
+const ROW_WORDS = [[1, 0, 0, 0, 0], [1, 0, 1, 1, 1], [0, 1, 0, 0, 1], [0, 1, 1, 1, 0]];
+
+function arucoOriginalBits(id) {
+  if (!Number.isInteger(id) || id < 0 || id >= ARUCO_ORIGINAL_SIZE) {
+    throw new RangeError(`ArUco original marker id must be 0–${ARUCO_ORIGINAL_SIZE - 1}, got ${id}`);
+  }
+  return Array.from({ length: 5 }, (_, row) => [...ROW_WORDS[(id >> (8 - 2 * row)) & 3]]);
+}
+
+/** Paper thickness allowance for the lid and its flaps (thickMM). */
+const THICKNESS = 0.5;
+/** Flap taper (offsetMM). */
+const FLAP_OFFSET = 3;
+/** PaperPhicons draws folds with 3 mm dashes and 3 mm gaps. */
+const DASH = [3, 3];
+/** Pattern origin on the page (patX, patY). */
+const ORIGIN = [15, 15];
+/** Print colours: front folds and cuts red, back (diagonal) folds blue. */
+const FRONT_COLOUR = '#ff0000';
+const BACK_COLOUR = '#0000ff';
+
+/** Column and row edges of the net. */
+function gridLines({ width: W, length: L, height: H }) {
+  return { x: [0, H, H + W, 2 * H + W, 2 * H + 2 * W, 3 * H + 2 * W], y: [0, H, H + L, 2 * H + L] };
+}
+
+/** The net of one block with its top-left at `at`. */
+function blockPaths(input, at) {
+  const { x, y } = gridLines(input);
+  const t = THICKNESS;
+  const off = FLAP_OFFSET;
+  const p = (px, py) => [at[0] + px, at[1] + py];
+  const front = (a, b) => ({ kind: 'fold', points: [a, b], colour: FRONT_COLOUR, dash: DASH });
+  const back = (a, b) => ({ kind: 'fold', points: [a, b], colour: BACK_COLOUR, dash: DASH });
+  const cut = (a, b) => ({ kind: 'cut', points: [a, b], colour: FRONT_COLOUR });
+
+  return [
+    // Back folds: the corner gusset diagonals.
+    back(p(x[0], y[0]), p(x[1], y[1])),
+    back(p(x[3], y[0]), p(x[2], y[1])),
+    back(p(x[0], y[3]), p(x[1], y[2])),
+    back(p(x[3], y[3]), p(x[2], y[2])),
+    // Front folds.
+    front(p(x[1], y[0]), p(x[1], y[3])),
+    front(p(x[2], y[0]), p(x[2], y[3])),
+    front(p(x[3], y[1]), p(x[3], y[2])),
+    front(p(x[4] - t, y[1] + t), p(x[4] - t, y[2] - t)),
+    front(p(x[0], y[1]), p(x[3], y[1])),
+    front(p(x[3], y[1] + t), p(x[4] - t, y[1] + t)),
+    front(p(x[0], y[2]), p(x[3], y[2])),
+    front(p(x[3], y[2] - t), p(x[4] - t, y[2] - t)),
+    // Cuts.
+    cut(p(x[0], y[0]), p(x[0], y[3])),
+    cut(p(x[5] - 2 * t, y[1] + off + t), p(x[5] - 2 * t, y[2] - off - t)),
+    cut(p(x[0], y[0]), p(x[3], y[0])),
+    cut(p(x[3] + off, y[0] + t), p(x[4] - off - t, y[0] + t)),
+    cut(p(x[0], y[3]), p(x[3], y[3])),
+    cut(p(x[3] + off, y[3] - t), p(x[4] - off - t, y[3] - t)),
+    cut(p(x[3], y[0]), p(x[3], y[1] + t)),
+    cut(p(x[3], y[2] - t), p(x[3], y[3])),
+    cut(p(x[4] - off - t, y[0] + t), p(x[4] - t, y[1] + t)),
+    cut(p(x[4] - off - t, y[3] - t), p(x[4] - t, y[2] - t)),
+    cut(p(x[4] - t, y[1] + t), p(x[5] - 2 * t, y[1] + off + t)),
+    cut(p(x[4] - t, y[2] - t), p(x[5] - 2 * t, y[2] - off - t)),
+    cut(p(x[3] + off, y[0] + t), p(x[3], y[1] + t)),
+    cut(p(x[3] + off, y[3] - t), p(x[3], y[2] - t)),
+  ];
+}
+
+/** Centre of the marker face: the top (W × L) or, with markerOnSide, the right wall (H × L). */
+function markerCentre(input, at) {
+  const { x, y } = gridLines(input);
+  const cx = input.markerOnSide ? (x[3] + x[2]) / 2 : (x[1] + x[2]) / 2;
+  return [at[0] + cx, at[1] + (y[1] + y[2]) / 2];
+}
+
+/** A marker as filled print paths: a black square of `size` with white data cells (exact, not rounded). */
+function markerPaths(id, size, centre) {
+  const cell = size / 7;
+  const [left, top] = [centre[0] - size / 2, centre[1] - size / 2];
+  const square = (cx, cy, w, h, fill) => ({ kind: 'print', closed: true, fill, points: [[cx, cy], [cx + w, cy], [cx + w, cy + h], [cx, cy + h]] });
+  const paths = [square(left, top, size, size, '#000000')];
+  arucoOriginalBits(id).forEach((row, r) => {
+    // Merge horizontal runs of white cells to keep the print clean.
+    for (let c = 0; c < 5; ) {
+      if (row[c] !== 1) { c++; continue; }
+      let end = c;
+      while (end + 1 < 5 && row[end + 1] === 1) end++;
+      paths.push(square(left + (1 + c) * cell, top + (1 + r) * cell, (end - c + 1) * cell, cell, '#ffffff'));
+      c = end + 1;
+    }
+  });
+  return paths;
+}
+
+/** The marker id printed above the marker, centred on the top edge of the white margin. */
+function markerLabel(id, size, centre) {
+  const outer = (size * 9) / 7;
+  const cellPt = (size * 72) / 25.4 / 7;
+  return { text: String(id), at: [centre[0], centre[1] - outer / 2], size: (Math.ceil(cellPt * 1.4) * 25.4) / 72, align: 'center', baseline: 'middle' };
+}
+
+/** Size of one block's net, for laying out copies. */
+function blockSpacing(input) {
+  const { x, y } = gridLines(input);
+  return [x[5] - 2 * THICKNESS - x[0], y[3] - y[0]];
+}
+
+/**
+ * All copies on one sheet. Lite change: copies fill as many columns as fit in the cutting area
+ * (the full version always uses two columns, which never fit for the default block).
+ */
+function buildBlockSheet(input) {
+  const copies = Math.max(1, Math.trunc(input.copies));
+  const [dx, dy] = blockSpacing(input);
+  const columns = Math.max(1, Math.floor((CUT_AREA.width - ORIGIN[0]) / dx));
+  const paths = [];
+  const labels = [];
+  const markerIds = [];
+  const errors = [];
+  const warnings = [];
+  const outer = (input.markerSize * 9) / 7;
+  const [faceW, faceL] = [input.markerOnSide ? input.height : input.width, input.length];
+  if (outer > Math.min(faceW, faceL)) {
+    warnings.push(`The marker with its white margin is ${outer.toFixed(1)} mm, larger than its ${faceW} × ${faceL} mm face; cameras need the white margin to detect it.`);
+  }
+  const lastId = input.firstMarkerId + copies - 1;
+  if (input.firstMarkerId < 0 || lastId >= ARUCO_ORIGINAL_SIZE) {
+    errors.push(`Marker ids must be 0–${ARUCO_ORIGINAL_SIZE - 1}; these blocks would need ${input.firstMarkerId}–${lastId}.`);
+  }
+  for (let i = 0; i < copies; i++) {
+    const at = [ORIGIN[0] + (i % columns) * dx, ORIGIN[1] + Math.floor(i / columns) * dy];
+    const id = input.firstMarkerId + i;
+    markerIds.push(id);
+    paths.push(...blockPaths(input, at));
+    if (id >= 0 && id < ARUCO_ORIGINAL_SIZE) {
+      const centre = markerCentre(input, at);
+      paths.push(...markerPaths(id, input.markerSize, centre));
+      labels.push(markerLabel(id, input.markerSize, centre));
+    }
+  }
+  const sheet = { paths, labels };
+  return { sheet, markerIds, fitsCutArea: fitsCutArea(sheet), errors, warnings };
+}
+
+// =============================================================================================
+// UI: 3D preview of the first block (three.js). Display only.
+// =============================================================================================
+
+const PAPER = '#f4f1ea';
+
+/** A face texture: paper with the marker and its white margin at true size, offset in mm from the face centre. */
+function faceTexture(faceW, faceH, marker) {
+  const scale = 12; // px per mm
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(faceW * scale));
+  canvas.height = Math.max(1, Math.round(faceH * scale));
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = PAPER;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const cell = (marker.size / 7) * scale;
+  const left = canvas.width / 2 - 4.5 * cell;
+  const top = canvas.height / 2 - 4.5 * cell;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(left, top, 9 * cell, 9 * cell);
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(left + cell, top + cell, 7 * cell, 7 * cell);
+  ctx.fillStyle = '#ffffff';
+  arucoOriginalBits(marker.id).forEach((row, r) =>
+    row.forEach((bit, c) => { if (bit) ctx.fillRect(left + (2 + c) * cell, top + (2 + r) * cell, cell + 0.5, cell + 0.5); }),
+  );
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+class BlockView3D {
+  constructor(container) {
+    this.container = container;
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(35, 1, 1, 5000);
+    this.group = new THREE.Group();
+    this.framed = false;
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    container.append(this.renderer.domElement);
+    this.scene.add(new THREE.HemisphereLight('#ffffff', '#8a8a8a', 2.2));
+    const sun = new THREE.DirectionalLight('#ffffff', 1.4);
+    sun.position.set(1, 2, 1.5);
+    this.scene.add(sun, this.group);
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.addEventListener('change', () => this.render());
+    new ResizeObserver(() => this.resize()).observe(container);
+    this.resize();
+  }
+
+  update(input, markerId) {
+    for (const child of [...this.group.children]) {
+      this.group.remove(child);
+      child.geometry?.dispose();
+      for (const m of [child.material].flat()) { m?.map?.dispose(); m?.dispose(); }
+    }
+    const { width: W, length: L, height: H } = input;
+    // three.js box: x = width, y = height (up), z = length. Face order: +x, −x, +y, −y, +z, −z.
+    const geometry = new THREE.BoxGeometry(W, H, L);
+    const paper = () => new THREE.MeshStandardMaterial({ color: PAPER, roughness: 0.9 });
+    const marked = (w, h) => markerId === null ? paper()
+      : new THREE.MeshStandardMaterial({ map: faceTexture(w, h, { id: markerId, size: input.markerSize }), roughness: 0.9 });
+    // The side wall is H × L on the sheet, turned a quarter on the box (L across, H up).
+    const materials = [
+      input.markerOnSide ? marked(L, H) : paper(),
+      paper(),
+      input.markerOnSide ? paper() : marked(W, L),
+      paper(),
+      paper(),
+      paper(),
+    ];
+    this.group.add(new THREE.Mesh(geometry, materials));
+    this.group.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: '#3a3a3a' })));
+    if (!this.framed) {
+      this.framed = true;
+      const d = Math.max(W, L, H) * 3.2;
+      this.camera.position.set(d * 0.6, d * 0.55, d * 0.7);
+      this.controls.target.set(0, 0, 0);
+      this.controls.update();
+    }
+    this.render();
+  }
+
+  reset() { this.framed = false; }
+
+  resize() {
+    const { clientWidth: w, clientHeight: h } = this.container;
+    if (w === 0 || h === 0) return;
+    this.renderer.setSize(w, h, false);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    this.render();
+  }
+
+  // Must not call controls.update(): that fires 'change', which calls render().
+  render() { this.renderer.render(this.scene, this.camera); }
+}
+
+// =============================================================================================
+// UI: the form, previews and export.
+// =============================================================================================
+
+const $ = (id) => document.getElementById(id);
+const num = (id) => Number($(id).value);
+const view = new BlockView3D($('view3d'));
+
+function readInput() {
+  return {
+    width: num('width'),
+    length: num('length'),
+    height: num('height'),
+    firstMarkerId: Math.trunc(num('firstMarkerId')),
+    markerSize: num('markerSize'),
+    copies: Math.max(1, Math.min(16, Math.trunc(num('copies')))),
+    markerOnSide: $('markerFace').value === 'side',
+  };
+}
+
+function update() {
+  const input = readInput();
+  const result = buildBlockSheet(input);
+  const ids = result.markerIds;
+  $('facts').innerHTML = [
+    ['Marker ids', ids.length > 1 ? `${ids[0]}–${ids[ids.length - 1]}` : String(ids[0])],
+    ['Marker with white margin', `${((input.markerSize * 9) / 7).toFixed(1)} mm`],
+    ['Dictionary', 'ArUco original (5 × 5), DICT_ARUCO_ORIGINAL'],
+  ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+  const notes = [
+    ...result.errors.map((e) => `<strong>${e}</strong>`),
+    ...result.warnings,
+    ...(result.fitsCutArea ? [] : ['<strong>Part of the sheet lies outside the 280 × 200 mm cutting area</strong>; use fewer copies or smaller blocks.']),
+  ];
+  $('notes').innerHTML = notes.map((n) => `<p>${n}</p>`).join('');
+  $('notes').hidden = notes.length === 0;
+  $('export').disabled = result.errors.length > 0;
+  $('sheet').innerHTML = previewSvg(result.sheet, 'PaperBlox sheet preview');
+  view.update(input, result.errors.length ? null : ids[0]);
+}
+
+let timer;
+const schedule = () => { clearTimeout(timer); timer = setTimeout(update, 100); };
+$('controls').addEventListener('input', schedule);
+$('controls').addEventListener('change', schedule);
+$('resetView').addEventListener('click', () => { view.reset(); update(); });
+
+$('export').addEventListener('click', async () => {
+  const result = buildBlockSheet(readInput());
+  if (result.errors.length) return;
+  const button = $('export');
+  button.disabled = true;
+  try {
+    const files = buildExportFiles(result.sheet, $('name').value);
+    await downloadAll(files);
+    $('status').textContent = `Downloaded ${files.map((f) => f.name).join(', ')}.`;
+  } catch (error) {
+    $('status').textContent = `Something went wrong: ${error instanceof Error ? error.message : String(error)}`;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+update();
 </script>
 </body>
 </html>
