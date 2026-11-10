@@ -640,29 +640,12 @@ function buildNet(input, lids = { top: true, bottom: true }) {
   };
 }
 
-// --- Placement on the sheet (from the full version's core/layout.ts) ---
-// The calibration crosses are cut through the same sheet, with arms reaching 20 mm in from each
-// corner of the cutting area, so the net must stay out of those corners. Processing's position
-// often reaches into the top-left one; the full version lets you drag the net away, the lite
-// version moves it to the first free spot (top left, clear of the corners) instead.
-
-/** Space kept from the cutting area's edge; corner squares kept clear of the crosses. */
-const ARRANGE_GAP = 3;
-const CROSS_ZONE = 22;
+// --- Placement on the sheet ---
+// A net that fits the cutting area stays where Processing puts it. The full version lets you
+// drag a net that does not fit; the lite version centres it on the cutting area instead, so it
+// often fits after all, and otherwise overhangs equally on both sides.
 
 const insideCutArea = (b) => b.minX >= 0 && b.minY >= 0 && b.maxX <= CUT_AREA.width && b.maxY <= CUT_AREA.height;
-const boundsOverlap = (a, b) => a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY;
-
-function touchesCrossZone(b) {
-  const { width: W, height: H } = CUT_AREA;
-  const z = CROSS_ZONE;
-  return [
-    { minX: 0, minY: 0, maxX: z, maxY: z },
-    { minX: W - z, minY: 0, maxX: W, maxY: z },
-    { minX: 0, minY: H - z, maxX: z, maxY: H },
-    { minX: W - z, minY: H - z, maxX: W, maxY: H },
-  ].some((c) => boundsOverlap(b, c));
-}
 
 /** Bounds of everything the cutter touches (cut and fold lines, tabs included). */
 const netBounds = (net) => boundsOf(net.sheet.paths.filter((p) => p.kind !== 'print'));
@@ -682,16 +665,11 @@ function translateNet(net, [dx, dy]) {
   };
 }
 
-/**
- * The net at its first free spot (left edge + gap, just below the top cross corners), when it
- * fits there clear of all four cross corners; otherwise where Processing puts it.
- */
+/** The net where Processing puts it when it fits the cutting area; otherwise centred on the cutting area. */
 function placeNet(net) {
   const b = netBounds(net);
-  const [x, y] = [ARRANGE_GAP, CROSS_ZONE];
-  const box = { minX: x, minY: y, maxX: x + b.maxX - b.minX, maxY: y + b.maxY - b.minY };
-  if (!insideCutArea(box) || touchesCrossZone(box)) return net;
-  return translateNet(net, [x - b.minX, y - b.minY]);
+  if (insideCutArea(b)) return net;
+  return translateNet(net, [CUT_AREA.width / 2 - (b.minX + b.maxX) / 2, CUT_AREA.height / 2 - (b.minY + b.maxY) / 2]);
 }
 
 // --- The folded shape in 3D (z up, bottom rim at z = 0, uses the folded height) ---
@@ -1148,8 +1126,6 @@ function update() {
   const notes = [];
   if (!net.fitsCutArea) {
     notes.push('<strong>Part of the net lies outside the 280 × 200 mm cutting area</strong>, so the cutter will not cut all of it. Make the shape smaller, or switch a lid off.');
-  } else if (touchesCrossZone(netBounds(net))) {
-    notes.push('<strong>The net reaches a corner where a calibration cross is cut.</strong> Make the shape a little smaller, or switch a lid off.');
   }
   if (Math.abs(d.foldedHeight - d.height) > 0.05) {
     notes.push(`This frustum folds to <strong>${mm(d.foldedHeight)}</strong>, not the ${mm(d.height)} you entered, because of how the frustum panels are built.`);
