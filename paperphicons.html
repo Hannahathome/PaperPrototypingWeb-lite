@@ -60,6 +60,10 @@
   .key::before { content: ''; display: inline-block; width: 1.5rem; margin-right: 0.4rem; vertical-align: middle; border-top: 2px solid var(--c); }
   .key.dashed::before { border-top-style: dashed; }
   button.link { padding: 0; border: 0; background: none; color: var(--accent); text-decoration: underline; cursor: pointer; }
+  #sheet .handle { cursor: grab; touch-action: none; }
+  #sheet.dragging .handle { cursor: grabbing; }
+  #sheet .handle:hover, #sheet.dragging .handle, #sheet:focus-visible .handle { stroke: var(--accent); }
+  #sheet:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -96,13 +100,24 @@
       <fieldset>
         <legend>Colour and images</legend>
         <label class="check"><input id="fillOn" type="checkbox"> Fill colour <input id="fill" type="color" value="#9ecae1" aria-label="Fill colour"></label>
-        <label>Side image (wraps around all sides) <input id="stripImage" type="file" accept="image/*"></label>
+        <label>Side images
+          <select id="sideMode">
+            <option value="strip" selected>One image across all panels</option>
+            <option value="perPanel">One image per panel</option>
+          </select>
+        </label>
+        <label id="stripField">Side image (wraps around all sides) <input id="stripImage" type="file" accept="image/*"></label>
+        <label id="panelField" hidden>
+          <span>Panel images (pick up to <span id="panelCount">6</span>, used in order)</span>
+          <input id="panelImages" type="file" accept="image/*" multiple>
+        </label>
         <label id="topLidImageField">Top lid image <input id="topLidImage" type="file" accept="image/*"></label>
         <label id="bottomLidImageField">Bottom lid image <input id="bottomLidImage" type="file" accept="image/*"></label>
         <p id="imageStatus" class="hint"></p>
         <button id="clearImages" type="button" class="link" hidden>Remove all images</button>
         <p class="hint">
-          The side image reads upright on the folded shape. A fill colour prints over images.
+          Side images read upright on the folded shape. Panel images go around the folded shape from
+          left to right in the order you picked them. A fill colour prints over images.
           Images stay on your computer; nothing is uploaded.
         </p>
       </fieldset>
@@ -120,11 +135,12 @@
       <div id="notes" class="notes" role="note" hidden></div>
 
       <figure>
-        <div id="sheet"></div>
+        <div id="sheet" tabindex="0" aria-label="Sheet preview. Drag the net to move it; arrow keys move it 1 mm, with Shift 5 mm."></div>
         <figcaption>
           <span class="key" style="--c: #d1242f">Cut</span>
           <span class="key dashed" style="--c: #1f6feb">Fold</span>
           <span class="key dashed" style="--c: #9aa0a6">Cutting area, 280 × 200 mm</span>
+          <span>Drag the net to move it; arrow keys move it 1 mm (Shift: 5 mm). <button id="resetPlace" type="button" class="link" hidden>Reset position</button></span>
         </figcaption>
       </figure>
 
@@ -222,6 +238,18 @@ function fitsCutArea(sheet) {
   const b = boundsOf(sheet.paths.filter((path) => path.kind !== 'print'));
   if (!b) return true;
   return b.minX >= 0 && b.minY >= 0 && b.maxX <= CUT_AREA.width && b.maxY <= CUT_AREA.height;
+}
+
+/** A sheet moved by [dx, dy] mm: paths, labels and images. */
+function translateSheet(sheet, [dx, dy]) {
+  if (dx === 0 && dy === 0) return sheet;
+  const move = ([x, y]) => [x + dx, y + dy];
+  return {
+    ...sheet,
+    paths: sheet.paths.map((path) => ({ ...path, points: path.points.map(move) })),
+    ...(sheet.labels ? { labels: sheet.labels.map((label) => ({ ...label, at: move(label.at) })) } : {}),
+    ...(sheet.images ? { images: sheet.images.map((image) => ({ ...image, at: move(image.at) })) } : {}),
+  };
 }
 
 // --- Calibration crosses (Processing drawCalibCrosses / drawCalibCrosses_V) ---
@@ -360,7 +388,11 @@ const stroke = (colour, widthPx, extra = '') =>
   `fill="none" stroke="${colour}" stroke-width="${widthPx}" vector-effect="non-scaling-stroke" ${extra}`.trim();
 const pathElement = (path, style) => `<path d="${pathData(path)}" ${style}/>`;
 
-function previewSvg(sheet, title) {
+/**
+ * The sheet as an SVG for the page. With `handle` (bounds in mm) the template is drawn in a
+ * group that dragOnPreview can move, under a transparent rectangle that catches the pointer.
+ */
+function previewSvg(sheet, title, { handle = null } = {}) {
   const parts = [];
   for (const image of sheet.images ?? []) {
     parts.push(`<image href="${image.dataUrl}" x="${fmt(image.at[0])}" y="${fmt(image.at[1])}" width="${fmt(image.width)}" height="${fmt(image.height)}" preserveAspectRatio="none"/>`);
@@ -377,12 +409,69 @@ function previewSvg(sheet, title) {
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.width} ${A4.height}" role="img" aria-label="${escapeXml(title)}">`,
     `<rect x="0" y="0" width="${A4.width}" height="${A4.height}" fill="#ffffff"/>`,
+    ...(handle ? ['<g class="moving">'] : []),
     ...parts,
+    ...(handle
+      ? [
+          `<rect class="handle" x="${fmt(handle.minX)}" y="${fmt(handle.minY)}" width="${fmt(handle.maxX - handle.minX)}" height="${fmt(handle.maxY - handle.minY)}" fill="transparent" stroke="none" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`,
+          '</g>',
+        ]
+      : []),
     `<rect x="0" y="0" width="${CUT_AREA.width}" height="${CUT_AREA.height}" ${stroke(PREVIEW_COLOURS.cutArea, 1, 'stroke-dasharray="4 3"')}/>`,
     ...printCrosses().map((p) => pathElement(p, stroke(PREVIEW_COLOURS.print, 1))),
     ...cutCrosses().map((p) => pathElement(p, stroke(PREVIEW_COLOURS.cut, 1, 'stroke-opacity="0.35"'))),
     '</svg>',
   ].join('\n');
+}
+
+/**
+ * Move the template by dragging it on the preview in `box` (0.5 mm steps), or with the arrow keys
+ * when the preview has focus (1 mm, Shift 5 mm). While dragging only the drawing moves; when the
+ * drag ends, `onMove([dx, dy])` gets the move in mm and redraws the sheet.
+ */
+function dragOnPreview(box, onMove) {
+  let drag = null;
+  const toMm = (event) => {
+    const ctm = box.querySelector('svg')?.getScreenCTM();
+    if (!ctm) return null;
+    const p = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse());
+    return [p.x, p.y];
+  };
+  box.addEventListener('pointerdown', (event) => {
+    const at = toMm(event);
+    if (event.button !== 0 || !event.target.closest('.handle') || !at) return;
+    drag = { start: at, move: [0, 0], pointer: event.pointerId };
+    box.setPointerCapture(event.pointerId);
+    box.classList.add('dragging');
+    event.preventDefault();
+  });
+  box.addEventListener('pointermove', (event) => {
+    if (!drag || event.pointerId !== drag.pointer) return;
+    const at = toMm(event);
+    if (!at) return;
+    drag.move = [Math.round((at[0] - drag.start[0]) * 2) / 2, Math.round((at[1] - drag.start[1]) * 2) / 2];
+    box.querySelector('.moving')?.setAttribute('transform', `translate(${drag.move[0]} ${drag.move[1]})`);
+  });
+  const end = (event) => {
+    if (!drag || event.pointerId !== drag.pointer) return;
+    const { move } = drag;
+    drag = null;
+    box.classList.remove('dragging');
+    if (event.type === 'pointercancel' || (move[0] === 0 && move[1] === 0)) {
+      box.querySelector('.moving')?.removeAttribute('transform');
+      return;
+    }
+    onMove(move);
+  };
+  box.addEventListener('pointerup', end);
+  box.addEventListener('pointercancel', end);
+  box.addEventListener('keydown', (event) => {
+    const step = event.shiftKey ? 5 : 1;
+    const move = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
+    if (!move) return;
+    event.preventDefault();
+    onMove(move);
+  });
 }
 
 // =============================================================================================
@@ -641,9 +730,8 @@ function buildNet(input, lids = { top: true, bottom: true }) {
 }
 
 // --- Placement on the sheet ---
-// A net that fits the cutting area stays where Processing puts it. The full version lets you
-// drag a net that does not fit; the lite version centres it on the cutting area instead, so it
-// often fits after all, and otherwise overhangs equally on both sides.
+// A net that fits the cutting area starts where Processing puts it; one that does not starts
+// centred on the cutting area, so it often fits after all. The user can then drag it (UI).
 
 const insideCutArea = (b) => b.minX >= 0 && b.minY >= 0 && b.maxX <= CUT_AREA.width && b.maxY <= CUT_AREA.height;
 
@@ -665,11 +753,11 @@ function translateNet(net, [dx, dy]) {
   };
 }
 
-/** The net where Processing puts it when it fits the cutting area; otherwise centred on the cutting area. */
-function placeNet(net) {
+/** Where a net starts, as an offset from where buildNet puts it: none when it fits the cutting area, else centred on it. */
+function startOffset(net) {
   const b = netBounds(net);
-  if (insideCutArea(b)) return net;
-  return translateNet(net, [CUT_AREA.width / 2 - (b.minX + b.maxX) / 2, CUT_AREA.height / 2 - (b.minY + b.maxY) / 2]);
+  if (insideCutArea(b)) return [0, 0];
+  return [CUT_AREA.width / 2 - (b.minX + b.maxX) / 2, CUT_AREA.height / 2 - (b.minY + b.maxY) / 2];
 }
 
 // --- The folded shape in 3D (z up, bottom rim at z = 0, uses the folded height) ---
@@ -699,6 +787,22 @@ function panelPoint({ corners: [bl, br, tr, tl] }, u, v) {
   const bottom = [lerp(bl[0], br[0], u), lerp(bl[1], br[1], u)];
   const top = [lerp(tl[0], tr[0], u), lerp(tl[1], tr[1], u)];
   return [lerp(bottom[0], top[0], v), lerp(bottom[1], top[1], v)];
+}
+
+/**
+ * One image per panel, as two triangles split along the top-right/bottom-left diagonal
+ * (drawPerPanelTexturesUniform): image top-left on the panel's bottom-left corner.
+ */
+function perPanelTriangles(panels, hasImage) {
+  return panels.flatMap((panel, index) => {
+    if (!hasImage[index]) return [];
+    const [bl, br, tr, tl] = panel.corners;
+    const slot = { kind: 'panel', index };
+    return [
+      { slot, points: [tl, tr, bl], uvs: [[0, 1], [1, 1], [0, 0]] },
+      { slot, points: [tr, br, bl], uvs: [[1, 1], [1, 0], [0, 0]] },
+    ];
+  });
 }
 
 /** One image across the whole strip: each panel gets an equal share of the image width. */
@@ -763,12 +867,14 @@ function fillPaths(net, colour) {
 }
 
 /**
- * Fills and textured triangles. Lite change: lid images work on their own (Processing prints
- * them only together with a side image), and only on lids that are on the sheet.
+ * Fills and textured triangles. sideMode: 'none', 'strip' (one image across all panels) or
+ * 'perPanel' (panelImages[i]: panel i has an image). Lite change: lid images work on their own
+ * (Processing prints them only together with side images), and only on lids that are on the sheet.
  */
-function buildArtwork(net, { fill = null, strip = false, topLidAspect = null, bottomLidAspect = null }) {
+function buildArtwork(net, { fill = null, sideMode = 'none', panelImages = [], topLidAspect = null, bottomLidAspect = null }) {
   const triangles = [];
-  if (strip) triangles.push(...stripTriangles(net.panels));
+  if (sideMode === 'perPanel') triangles.push(...perPanelTriangles(net.panels, panelImages));
+  if (sideMode === 'strip') triangles.push(...stripTriangles(net.panels));
   if (bottomLidAspect && net.lids.bottom) triangles.push(...lidTriangles(net.bottomLid, bottomLidAspect, { kind: 'bottomLid' }));
   if (topLidAspect && net.lids.top) triangles.push(...lidTriangles(net.topLid, topLidAspect, { kind: 'topLid' }));
   return { fills: fill ? fillPaths(net, fill) : [], triangles };
@@ -927,7 +1033,7 @@ class ShapeView3D {
     return new THREE.MeshStandardMaterial({ color: PAPER, roughness: 0.9, side: THREE.DoubleSide });
   }
 
-  /** look: { fill, strip, topLid, bottomLid } (images or null); lids: { top, bottom }. */
+  /** look: { fill, strip, panels: [image per panel], topLid, bottomLid } (images or null); lids: { top, bottom }. */
   update(dims, look, lids) {
     for (const child of [...this.group.children]) {
       this.group.remove(child);
@@ -957,10 +1063,12 @@ class ShapeView3D {
           }
         }
       } else {
+        // Same diagonal as the print: (tl, tr, bl) and (tr, br, bl).
         positions.push(corners.tl, corners.tr, corners.bl, corners.tr, corners.br, corners.bl);
         uvs.push([0, 1], [1, 1], [0, 0], [1, 1], [1, 0], [0, 0]);
       }
-      this.group.add(new THREE.Mesh(meshGeometry(positions, uvs), this.material(look.fill, look.strip)));
+      const image = look.strip ?? look.panels?.[k] ?? null;
+      this.group.add(new THREE.Mesh(meshGeometry(positions, uvs), this.material(look.fill, image)));
     }
 
     // Lids: the image disc as printed, seen from outside (top from above, bottom from below).
@@ -1035,7 +1143,7 @@ const $ = (id) => document.getElementById(id);
 const num = (id) => Number($(id).value);
 const mm = (value) => `${value.toFixed(1)} mm`;
 const view = new ShapeView3D($('view3d'));
-const images = { strip: null, topLid: null, bottomLid: null };
+const images = { strip: null, panels: [], topLid: null, bottomLid: null };
 
 /**
  * The side image turned 180°. The net maps image row 0 to the bottom rim, which would put the
@@ -1087,34 +1195,72 @@ function readForm() {
     },
     lids: { top: $('topLidOn').checked, bottom: $('bottomLidOn').checked },
     fill: $('fillOn').checked ? $('fill').value : null,
+    sideMode: $('sideMode').value,
   };
 }
 
-/** The sheet for the current form at `dpi`. */
+/**
+ * The side images the current form uses, turned to read upright: { strip, panels }. Turning
+ * also reverses the panel order around the folded shape, so the picked images go on the net from
+ * the last panel back; around the shape they then read left to right in the order picked,
+ * like one strip image.
+ */
+function sideImages(form) {
+  const n = form.input.sides;
+  return {
+    strip: form.sideMode === 'strip' ? turned(images.strip) : null,
+    panels: form.sideMode === 'perPanel' ? Array.from({ length: n }, (_, k) => turned(images.panels[n - 1 - k] ?? null)) : [],
+  };
+}
+
+/** Where the user dragged the net: an offset in mm from where buildNet puts it, or null for the start position. */
+let placed = null;
+/** The offset of the net in the preview, so a drag continues from where it is shown. */
+let currentOffset = [0, 0];
+
+/** The sheet for the current form at `dpi`, with the net's offset. */
 function buildSheet(form, dpi) {
-  const net = placeNet(buildNet(form.input, form.lids));
+  const raw = buildNet(form.input, form.lids);
+  const offset = placed ?? startOffset(raw);
+  const net = translateNet(raw, offset);
+  const side = sideImages(form);
   const art = buildArtwork(net, {
     fill: form.fill,
-    strip: !!images.strip,
+    sideMode: side.strip ? 'strip' : side.panels.some(Boolean) ? 'perPanel' : 'none',
+    panelImages: side.panels.map(Boolean),
     topLidAspect: aspectOf(images.topLid),
     bottomLidAspect: aspectOf(images.bottomLid),
   });
-  const imageFor = (slot) => (slot.kind === 'strip' ? turned(images.strip) : images[slot.kind]);
-  return { net, sheet: printableSheet(net, art, imageFor, dpi) };
+  const imageFor = (slot) => (slot.kind === 'strip' ? side.strip : slot.kind === 'panel' ? side.panels[slot.index] : images[slot.kind]);
+  return { net, offset, sheet: printableSheet(net, art, imageFor, dpi) };
 }
 
 function showImageFields(form) {
+  $('stripField').hidden = form.sideMode !== 'strip';
+  $('panelField').hidden = form.sideMode !== 'perPanel';
+  $('panelCount').textContent = String(form.input.sides);
   $('topLidImageField').hidden = !form.lids.top;
   $('bottomLidImageField').hidden = !form.lids.bottom;
-  const have = [images.strip && 'side', form.lids.top && images.topLid && 'top lid', form.lids.bottom && images.bottomLid && 'bottom lid'].filter(Boolean);
-  $('imageStatus').textContent = have.length ? `Images on this shape: ${have.join(', ')}.` : '';
-  $('clearImages').hidden = !(images.strip || images.topLid || images.bottomLid);
+  const used = sideImages(form).panels.filter(Boolean).length;
+  const unused = form.sideMode === 'perPanel' ? images.panels.length - used : 0;
+  const have = [
+    form.sideMode === 'strip' && images.strip && 'side',
+    used && `${used} of ${form.input.sides} panels`,
+    form.lids.top && images.topLid && 'top lid',
+    form.lids.bottom && images.bottomLid && 'bottom lid',
+  ].filter(Boolean);
+  $('imageStatus').textContent = [
+    have.length ? `Images on this shape: ${have.join(', ')}.` : '',
+    unused > 0 ? `${unused} more panel image${unused === 1 ? ' is' : 's are'} not used: the shape has ${form.input.sides} sides.` : '',
+  ].filter(Boolean).join(' ');
+  $('clearImages').hidden = !(images.strip || images.panels.length || images.topLid || images.bottomLid);
 }
 
 function update() {
   const form = readForm();
   showImageFields(form);
-  const { net, sheet } = buildSheet(form, PREVIEW_DPI);
+  const { net, offset, sheet } = buildSheet(form, PREVIEW_DPI);
+  currentOffset = offset;
   const d = net.dims;
   $('facts').innerHTML = [
     ['Perimeter, top / bottom', `${mm(d.topPerimeter)} / ${mm(d.bottomPerimeter)}`],
@@ -1125,7 +1271,7 @@ function update() {
 
   const notes = [];
   if (!net.fitsCutArea) {
-    notes.push('<strong>Part of the net lies outside the 280 × 200 mm cutting area</strong>, so the cutter will not cut all of it. Make the shape smaller, or switch a lid off.');
+    notes.push('<strong>Part of the net lies outside the 280 × 200 mm cutting area</strong>, so the cutter will not cut all of it. Drag it inside the dashed rectangle, make the shape smaller, or switch a lid off.');
   }
   if (Math.abs(d.foldedHeight - d.height) > 0.05) {
     notes.push(`This frustum folds to <strong>${mm(d.foldedHeight)}</strong>, not the ${mm(d.height)} you entered, because of how the frustum panels are built.`);
@@ -1138,10 +1284,11 @@ function update() {
   $('notes').innerHTML = notes.map((n) => `<p>${n}</p>`).join('');
   $('notes').hidden = notes.length === 0;
 
-  $('sheet').innerHTML = previewSvg(sheet, 'PaperPhicons sheet preview');
+  $('sheet').innerHTML = previewSvg(sheet, 'PaperPhicons sheet preview', { handle: netBounds(net) });
+  $('resetPlace').hidden = placed === null;
   view.update(d, {
     fill: form.fill,
-    strip: turned(images.strip),
+    ...sideImages(form),
     topLid: images.topLid,
     bottomLid: images.bottomLid,
   }, form.lids);
@@ -1152,6 +1299,12 @@ const schedule = () => { clearTimeout(timer); timer = setTimeout(update, 120); }
 $('controls').addEventListener('input', schedule);
 $('controls').addEventListener('change', schedule);
 $('resetView').addEventListener('click', () => { view.reset(); update(); });
+
+dragOnPreview($('sheet'), ([dx, dy]) => {
+  placed = [currentOffset[0] + dx, currentOffset[1] + dy];
+  update();
+});
+$('resetPlace').addEventListener('click', () => { placed = null; update(); });
 
 async function loadImage(file) {
   const dataUrl = await new Promise((resolve, reject) => {
@@ -1179,9 +1332,21 @@ for (const [field, slot] of [['stripImage', 'strip'], ['topLidImage', 'topLid'],
     update();
   });
 }
+$('panelImages').addEventListener('change', async (event) => {
+  const files = [...(event.target.files ?? [])];
+  if (!files.length) return;
+  try {
+    images.panels = await Promise.all(files.map(loadImage));
+    $('status').textContent = '';
+  } catch {
+    $('status').textContent = 'One of those files could not be read as an image.';
+  }
+  update();
+});
 $('clearImages').addEventListener('click', () => {
   images.strip = images.topLid = images.bottomLid = null;
-  for (const id of ['stripImage', 'topLidImage', 'bottomLidImage']) $(id).value = '';
+  images.panels = [];
+  for (const id of ['stripImage', 'panelImages', 'topLidImage', 'bottomLidImage']) $(id).value = '';
   update();
 });
 
