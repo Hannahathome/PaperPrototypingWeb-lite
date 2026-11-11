@@ -368,8 +368,9 @@ const pathElement = (path, style) => `<path d="${pathData(path)}" ${style}/>`;
 /**
  * The sheet as an SVG for the page. With `handle` (bounds in mm) the template is drawn in a
  * group that dragOnPreview can move, under a transparent rectangle that catches the pointer.
+ * `overlay` is SVG drawn over the template on screen only (it moves with it), never exported.
  */
-function previewSvg(sheet, title, { handle = null } = {}) {
+function previewSvg(sheet, title, { handle = null, overlay = '' } = {}) {
   const parts = [];
   for (const image of sheet.images ?? []) {
     parts.push(`<image href="${image.dataUrl}" x="${fmt(image.at[0])}" y="${fmt(image.at[1])}" width="${fmt(image.width)}" height="${fmt(image.height)}" preserveAspectRatio="none"/>`);
@@ -388,6 +389,7 @@ function previewSvg(sheet, title, { handle = null } = {}) {
     `<rect x="0" y="0" width="${A4.width}" height="${A4.height}" fill="#ffffff"/>`,
     ...(handle ? ['<g class="moving">'] : []),
     ...parts,
+    ...(overlay ? [overlay] : []),
     ...(handle
       ? [
           `<rect class="handle" x="${fmt(handle.minX)}" y="${fmt(handle.minY)}" width="${fmt(handle.maxX - handle.minX)}" height="${fmt(handle.maxY - handle.minY)}" fill="transparent" stroke="none" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`,

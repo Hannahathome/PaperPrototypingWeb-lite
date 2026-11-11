@@ -60,6 +60,12 @@
   .key::before { content: ''; display: inline-block; width: 1.5rem; margin-right: 0.4rem; vertical-align: middle; border-top: 2px solid var(--c); }
   .key.dashed::before { border-top-style: dashed; }
   button.link { padding: 0; border: 0; background: none; color: var(--accent); text-decoration: underline; cursor: pointer; }
+  #panelField { display: grid; gap: 0.4rem; }
+  .panel-list { display: grid; gap: 0.3rem; margin: 0; padding: 0; list-style: none; }
+  .panel-list li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+  .panel-list .name { min-width: 3.8rem; }
+  .panel-list .thumb { flex: none; width: 2rem; height: 2rem; object-fit: cover; border: 1px solid var(--line); border-radius: 0.2rem; background: var(--bg); }
+  .panel-list button.pick { padding: 0.15rem 0.6rem; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--text); cursor: pointer; font-size: 0.8rem; }
   #sheet .handle { cursor: grab; touch-action: none; }
   #sheet.dragging .handle { cursor: grabbing; }
   #sheet .handle:hover, #sheet.dragging .handle, #sheet:focus-visible .handle { stroke: var(--accent); }
@@ -98,6 +104,20 @@
       </fieldset>
 
       <fieldset>
+        <legend>Marker</legend>
+        <label>Marker id (0–1023) <input id="markerId" type="number" min="0" max="1023" step="1" value="48" disabled></label>
+        <label>Marker size (mm) <input id="markerSize" type="number" min="5" max="50" step="1" value="16" disabled></label>
+        <label>Marker on
+          <select id="markerFace">
+            <option value="none" selected>No marker</option>
+            <option value="top">Top lid</option>
+            <option value="side">Side (panel 1)</option>
+          </select>
+        </label>
+        <p class="hint">An ArUco marker (DICT_ARUCO_ORIGINAL), as on PaperBlox. The size is the black square. A white margin of one cell (size ÷ 7) is added around it; keep it clear.</p>
+      </fieldset>
+
+      <fieldset>
         <legend>Colour and images</legend>
         <label class="check"><input id="fillOn" type="checkbox"> Fill colour <input id="fill" type="color" value="#9ecae1" aria-label="Fill colour"></label>
         <label>Side images
@@ -107,17 +127,16 @@
           </select>
         </label>
         <label id="stripField">Side image (wraps around all sides) <input id="stripImage" type="file" accept="image/*"></label>
-        <label id="panelField" hidden>
-          <span>Panel images (pick up to <span id="panelCount">6</span>, used in order)</span>
-          <input id="panelImages" type="file" accept="image/*" multiple>
-        </label>
+        <div id="panelField" hidden>
+          <p class="hint">The numbers show on the sheet preview. On the folded shape the panels go 1, 2, 3 … from left to right.</p>
+          <ol id="panelList" class="panel-list"></ol>
+        </div>
         <label id="topLidImageField">Top lid image <input id="topLidImage" type="file" accept="image/*"></label>
         <label id="bottomLidImageField">Bottom lid image <input id="bottomLidImage" type="file" accept="image/*"></label>
         <p id="imageStatus" class="hint"></p>
         <button id="clearImages" type="button" class="link" hidden>Remove all images</button>
         <p class="hint">
-          Side images read upright on the folded shape. Panel images go around the folded shape from
-          left to right in the order you picked them. A fill colour prints over images.
+          Side images read upright on the folded shape. A fill colour prints over images.
           Images stay on your computer; nothing is uploaded.
         </p>
       </fieldset>
@@ -391,8 +410,9 @@ const pathElement = (path, style) => `<path d="${pathData(path)}" ${style}/>`;
 /**
  * The sheet as an SVG for the page. With `handle` (bounds in mm) the template is drawn in a
  * group that dragOnPreview can move, under a transparent rectangle that catches the pointer.
+ * `overlay` is SVG drawn over the template on screen only (it moves with it), never exported.
  */
-function previewSvg(sheet, title, { handle = null } = {}) {
+function previewSvg(sheet, title, { handle = null, overlay = '' } = {}) {
   const parts = [];
   for (const image of sheet.images ?? []) {
     parts.push(`<image href="${image.dataUrl}" x="${fmt(image.at[0])}" y="${fmt(image.at[1])}" width="${fmt(image.width)}" height="${fmt(image.height)}" preserveAspectRatio="none"/>`);
@@ -411,6 +431,7 @@ function previewSvg(sheet, title, { handle = null } = {}) {
     `<rect x="0" y="0" width="${A4.width}" height="${A4.height}" fill="#ffffff"/>`,
     ...(handle ? ['<g class="moving">'] : []),
     ...parts,
+    ...(overlay ? [overlay] : []),
     ...(handle
       ? [
           `<rect class="handle" x="${fmt(handle.minX)}" y="${fmt(handle.minY)}" width="${fmt(handle.maxX - handle.minX)}" height="${fmt(handle.maxY - handle.minY)}" fill="transparent" stroke="none" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`,
@@ -880,6 +901,117 @@ function buildArtwork(net, { fill = null, sideMode = 'none', panelImages = [], t
   return { fills: fill ? fillPaths(net, fill) : [], triangles };
 }
 
+// --- ArUco marker (lite addition; the full version has no markers on these shapes) ---
+// Same dictionary and drawing as PaperBlox (DICT_ARUCO_ORIGINAL), plus a white margin square so a
+// fill colour or image cannot cover the margin. On the top lid the marker is drawn as on a
+// PaperBlox top; on a side it follows its panel and reads upright on the folded shape.
+
+/** ArUco "original" dictionary (OpenCV DICT_ARUCO_ORIGINAL): 1024 markers, 5 × 5 bits. */
+const ARUCO_ORIGINAL_SIZE = 1024;
+/** Each row carries 2 bits of the id (most significant row first) as one of four 5-bit words; 1 = white. */
+const ROW_WORDS = [[1, 0, 0, 0, 0], [1, 0, 1, 1, 1], [0, 1, 0, 0, 1], [0, 1, 1, 1, 0]];
+
+function arucoOriginalBits(id) {
+  if (!Number.isInteger(id) || id < 0 || id >= ARUCO_ORIGINAL_SIZE) {
+    throw new RangeError(`ArUco original marker id must be 0–${ARUCO_ORIGINAL_SIZE - 1}, got ${id}`);
+  }
+  return Array.from({ length: 5 }, (_, row) => [...ROW_WORDS[(id >> (8 - 2 * row)) & 3]]);
+}
+
+/**
+ * A marker as filled print paths: the white margin (one cell), the black square of `size` and its
+ * white data cells, exact. `right` is the unit vector of the marker's left-to-right direction on
+ * the page; its top-to-bottom direction is `right` turned a quarter clockwise.
+ */
+function markerPaths(id, size, centre, right = [1, 0]) {
+  const cell = size / 7;
+  const down = [-right[1], right[0]];
+  const at = (x, y) => [centre[0] + right[0] * x + down[0] * y, centre[1] + right[1] * x + down[1] * y];
+  const square = (x, y, w, h, fill) => ({ kind: 'print', closed: true, fill, points: [at(x, y), at(x + w, y), at(x + w, y + h), at(x, y + h)] });
+  const half = size / 2;
+  const paths = [square(-half - cell, -half - cell, size + 2 * cell, size + 2 * cell, '#ffffff'), square(-half, -half, size, size, '#000000')];
+  arucoOriginalBits(id).forEach((row, r) => {
+    // Merge horizontal runs of white cells to keep the print clean.
+    for (let c = 0; c < 5; ) {
+      if (row[c] !== 1) { c++; continue; }
+      let end = c;
+      while (end + 1 < 5 && row[end + 1] === 1) end++;
+      paths.push(square(-half + (1 + c) * cell, -half + (1 + r) * cell, (end - c + 1) * cell, cell, '#ffffff'));
+      c = end + 1;
+    }
+  });
+  return paths;
+}
+
+/** The marker id printed above the marker, centred on the top edge of the white margin (as PaperBlox). */
+function markerLabel(id, size, centre) {
+  const outer = (size * 9) / 7;
+  const cellPt = (size * 72) / 25.4 / 7;
+  return { text: String(id), at: [centre[0], centre[1] - outer / 2], size: (Math.ceil(cellPt * 1.4) * 25.4) / 72, align: 'center', baseline: 'middle' };
+}
+
+/** True when `point` lies inside the convex polygon (either winding), edges included. */
+function insideConvex(point, polygon) {
+  let sign = 0;
+  for (let i = 0; i < polygon.length; i++) {
+    const [a, b] = [polygon[i], polygon[(i + 1) % polygon.length]];
+    const cross = (b[0] - a[0]) * (point[1] - a[1]) - (b[1] - a[1]) * (point[0] - a[0]);
+    if (Math.abs(cross) < 1e-9) continue;
+    if (sign === 0) sign = Math.sign(cross);
+    else if (Math.sign(cross) !== sign) return false;
+  }
+  return true;
+}
+
+/** Side panel 1 (around the folded shape) is the net's last panel; see the panel images in the UI. */
+const sidePanelOf = (net) => net.panels[net.panels.length - 1];
+
+/**
+ * Where the marker goes: { centre, right, polygon } on the page, or null when the face is not on
+ * the sheet. Side: the panel's centre; `right` points from its bottom-right to its bottom-left
+ * corner, which is left to right on the folded shape seen from outside.
+ */
+function markerPlace(net, face) {
+  if (face === 'top') return net.lids.top ? { centre: net.topLid.centre, right: [1, 0], polygon: net.topLid.corners } : null;
+  const [bl, br, tr, tl] = sidePanelOf(net).corners;
+  const centre = [(bl[0] + br[0] + tr[0] + tl[0]) / 4, (bl[1] + br[1] + tr[1] + tl[1]) / 4];
+  const length = Math.hypot(bl[0] - br[0], bl[1] - br[1]);
+  return { centre, right: [(bl[0] - br[0]) / length, (bl[1] - br[1]) / length], polygon: [bl, br, tr, tl] };
+}
+
+/**
+ * The marker for `net`: { paths, labels, errors, warnings }. marker: { face: 'none' | 'top' |
+ * 'side', id, size }. The id is printed above a top-lid marker; a side marker has no label,
+ * because labels are not turned with the panel.
+ */
+function buildMarker(net, { face, id, size }) {
+  const result = { paths: [], labels: [], errors: [], warnings: [] };
+  if (face === 'none') return result;
+  if (!Number.isInteger(id) || id < 0 || id >= ARUCO_ORIGINAL_SIZE) {
+    result.errors.push(`The marker id must be a whole number from 0 to ${ARUCO_ORIGINAL_SIZE - 1}.`);
+    return result;
+  }
+  if (!(size > 0)) {
+    result.errors.push('The marker size must be more than 0 mm.');
+    return result;
+  }
+  const place = markerPlace(net, face);
+  if (!place) {
+    result.warnings.push('The marker goes on the top lid, which is switched off, so there is no marker. Switch the top lid on or put the marker on a side.');
+    return result;
+  }
+  const outer = (size * 9) / 7;
+  const down = [-place.right[1], place.right[0]];
+  const corner = (x, y) => [place.centre[0] + place.right[0] * x + down[0] * y, place.centre[1] + place.right[1] * x + down[1] * y];
+  const box = [corner(-outer / 2, -outer / 2), corner(outer / 2, -outer / 2), corner(outer / 2, outer / 2), corner(-outer / 2, outer / 2)];
+  if (!box.every((p) => insideConvex(p, place.polygon))) {
+    result.warnings.push(`The marker with its white margin is ${outer.toFixed(1)} mm, larger than the ${face === 'top' ? 'top lid' : 'side panel'}; cameras need the white margin to detect it. Use a smaller marker or a bigger shape.`);
+  }
+  result.paths = markerPaths(id, size, place.centre, place.right);
+  if (face === 'top') result.labels = [markerLabel(id, size, place.centre)];
+  return result;
+}
+
 // =============================================================================================
 // UI: rasterising images (browser only). Triangles in page mm + image coordinates are drawn
 // onto a canvas: at 300 DPI for the print (as Processing), at a low DPI for the preview.
@@ -995,6 +1127,24 @@ function meshGeometry(positions, uvs) {
   return geometry;
 }
 
+/** The marker with its white margin as a texture, 9 × 9 cells, row 0 at the top (as PaperBlox). */
+function markerTexture(id) {
+  const cell = 24; // px
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 9 * cell;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, 9 * cell, 9 * cell);
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(cell, cell, 7 * cell, 7 * cell);
+  ctx.fillStyle = '#ffffff';
+  arucoOriginalBits(id).forEach((row, r) => row.forEach((bit, c) => { if (bit) ctx.fillRect((2 + c) * cell, (2 + r) * cell, cell, cell); }));
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.magFilter = THREE.NearestFilter;
+  return texture;
+}
+
 class ShapeView3D {
   constructor(container) {
     this.container = container;
@@ -1033,11 +1183,15 @@ class ShapeView3D {
     return new THREE.MeshStandardMaterial({ color: PAPER, roughness: 0.9, side: THREE.DoubleSide });
   }
 
-  /** look: { fill, strip, panels: [image per panel], topLid, bottomLid } (images or null); lids: { top, bottom }. */
-  update(dims, look, lids) {
+  /**
+   * look: { fill, strip, panels: [image per panel], topLid, bottomLid } (images or null);
+   * lids: { top, bottom }; marker: { face: 'top' | 'side', id, size } or null.
+   */
+  update(dims, look, lids, marker = null) {
     for (const child of [...this.group.children]) {
       this.group.remove(child);
       child.geometry?.dispose();
+      if (child.material?.map && !this.textures.has(child.material.map.image)) child.material.map.dispose();
       child.material?.dispose();
     }
     const solid = foldedSolid(dims);
@@ -1098,6 +1252,7 @@ class ShapeView3D {
     };
     if (lids.bottom) lid(solid.bottom, look.bottomLid, false);
     if (lids.top) lid(solid.top, look.topLid, true);
+    if (marker) this.addMarker(solid, marker);
 
     // Fold edges.
     const edges = [];
@@ -1118,6 +1273,40 @@ class ShapeView3D {
       this.controls.update();
     }
     this.render();
+  }
+
+  /**
+   * The marker as a square just outside its face, as it prints: on the top lid seen from above
+   * (page right = +x, page down = −y); on a side on panel 1, upright seen from outside.
+   */
+  addMarker(solid, { face, id, size }) {
+    const n = solid.top.length;
+    const half = ((size * 9) / 7) / 2;
+    let centre, right, up, out;
+    if (face === 'top') {
+      centre = [0, 0, solid.height];
+      [right, up, out] = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+    } else {
+      // Panel 1 is net panel n − 1; same corner map as the side faces above.
+      const k = n - 1;
+      const i = (n - k) % n;
+      const j = (i + 1) % n;
+      const [bl, br, tr, tl] = [solid.bottom[j], solid.bottom[i], solid.top[i], solid.top[j]];
+      const unit = (v) => { const l = Math.hypot(...v); return v.map((c) => c / l); };
+      const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+      const mid = (a, b) => lerp3(a, b, 0.5);
+      centre = lerp3(mid(bl, br), mid(tl, tr), 0.5);
+      right = unit(sub(bl, br));
+      up = unit(sub(mid(tl, tr), mid(bl, br)));
+      out = unit([right[1] * up[2] - right[2] * up[1], right[2] * up[0] - right[0] * up[2], right[0] * up[1] - right[1] * up[0]]);
+      if (out[0] * centre[0] + out[1] * centre[1] < 0) out = out.map((c) => -c);
+    }
+    const lift = 0.15; // mm off the face, so the marker draws over it
+    const at = (x, y) => [0, 1, 2].map((a) => centre[a] + right[a] * x + up[a] * y + out[a] * lift);
+    const [tl, tr, bl, br] = [at(-half, half), at(half, half), at(-half, -half), at(half, -half)];
+    const geometry = meshGeometry([tl, bl, tr, tr, bl, br], [[0, 0], [0, 1], [1, 0], [1, 0], [0, 1], [1, 1]]);
+    const material = new THREE.MeshStandardMaterial({ map: markerTexture(id), roughness: 0.9, side: THREE.DoubleSide });
+    this.group.add(new THREE.Mesh(geometry, material));
   }
 
   reset() { this.framed = false; }
@@ -1196,14 +1385,20 @@ function readForm() {
     lids: { top: $('topLidOn').checked, bottom: $('bottomLidOn').checked },
     fill: $('fillOn').checked ? $('fill').value : null,
     sideMode: $('sideMode').value,
+    marker: readMarker(),
   };
+}
+
+function readMarker() {
+  const face = $('markerFace').value;
+  $('markerId').disabled = $('markerSize').disabled = face === 'none';
+  return { face, id: Number($('markerId').value), size: num('markerSize') };
 }
 
 /**
  * The side images the current form uses, turned to read upright: { strip, panels }. Turning
- * also reverses the panel order around the folded shape, so the picked images go on the net from
- * the last panel back; around the shape they then read left to right in the order picked,
- * like one strip image.
+ * also reverses the panel order around the folded shape, so panel image 1 goes on the net's last
+ * panel; around the shape panels 1, 2, 3 … then read left to right, like one strip image.
  */
 function sideImages(form) {
   const n = form.input.sides;
@@ -1232,44 +1427,125 @@ function buildSheet(form, dpi) {
     bottomLidAspect: aspectOf(images.bottomLid),
   });
   const imageFor = (slot) => (slot.kind === 'strip' ? side.strip : slot.kind === 'panel' ? side.panels[slot.index] : images[slot.kind]);
-  return { net, offset, sheet: printableSheet(net, art, imageFor, dpi) };
+  const printable = printableSheet(net, art, imageFor, dpi);
+  // The marker prints last, over fills and images.
+  const marker = buildMarker(net, form.marker);
+  const sheet = { ...printable, paths: [...printable.paths, ...marker.paths], labels: marker.labels };
+  return { net, offset, marker, sheet };
 }
 
 function showImageFields(form) {
   $('stripField').hidden = form.sideMode !== 'strip';
   $('panelField').hidden = form.sideMode !== 'perPanel';
-  $('panelCount').textContent = String(form.input.sides);
+  if (form.sideMode === 'perPanel') renderPanelList(form.input.sides);
   $('topLidImageField').hidden = !form.lids.top;
   $('bottomLidImageField').hidden = !form.lids.bottom;
   const used = sideImages(form).panels.filter(Boolean).length;
-  const unused = form.sideMode === 'perPanel' ? images.panels.length - used : 0;
   const have = [
     form.sideMode === 'strip' && images.strip && 'side',
     used && `${used} of ${form.input.sides} panels`,
     form.lids.top && images.topLid && 'top lid',
     form.lids.bottom && images.bottomLid && 'bottom lid',
   ].filter(Boolean);
-  $('imageStatus').textContent = [
-    have.length ? `Images on this shape: ${have.join(', ')}.` : '',
-    unused > 0 ? `${unused} more panel image${unused === 1 ? ' is' : 's are'} not used: the shape has ${form.input.sides} sides.` : '',
-  ].filter(Boolean).join(' ');
-  $('clearImages').hidden = !(images.strip || images.panels.length || images.topLid || images.bottomLid);
+  $('imageStatus').textContent = have.length ? `Images on this shape: ${have.join(', ')}.` : '';
+  $('clearImages').hidden = !(images.strip || images.panels.some(Boolean) || images.topLid || images.bottomLid);
+}
+
+/**
+ * One row per panel: number, thumbnail, Choose image and Remove. images.panels[i] is panel i + 1
+ * in reading order around the folded shape. Rebuilt only when the sides or the images change.
+ */
+let panelListKey = '';
+/** Counts changes to images.panels, so the list is rebuilt after each one. */
+let panelVersion = 0;
+function renderPanelList(sides) {
+  const key = `${sides}/${panelVersion}`;
+  if (key === panelListKey) return;
+  panelListKey = key;
+  $('panelList').replaceChildren(
+    ...Array.from({ length: sides }, (_, i) => {
+      const image = images.panels[i] ?? null;
+      const li = document.createElement('li');
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = `Panel ${i + 1}`;
+      const thumb = document.createElement(image ? 'img' : 'span');
+      thumb.className = 'thumb';
+      if (image) {
+        thumb.src = image.src;
+        thumb.alt = '';
+      }
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.hidden = true;
+      input.addEventListener('change', async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        try {
+          images.panels[i] = await loadImage(file);
+          panelVersion++;
+          $('status').textContent = '';
+        } catch {
+          $('status').textContent = 'That file could not be read as an image.';
+        }
+        update();
+      });
+      const pick = document.createElement('button');
+      pick.type = 'button';
+      pick.className = 'pick';
+      pick.textContent = image ? 'Change' : 'Choose image';
+      pick.setAttribute('aria-label', `${pick.textContent} for panel ${i + 1}`);
+      pick.addEventListener('click', () => input.click());
+      li.append(name, thumb, pick, input);
+      if (image) {
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'link';
+        remove.textContent = 'Remove';
+        remove.setAttribute('aria-label', `Remove the image on panel ${i + 1}`);
+        remove.addEventListener('click', () => {
+          images.panels[i] = null;
+          panelVersion++;
+          update();
+        });
+        li.append(remove);
+      }
+      return li;
+    }),
+  );
+}
+
+/** Panel numbers for the sheet preview (screen only): net panel k is panel n − k around the shape. */
+function panelNumbers(net) {
+  const n = net.panels.length;
+  return net.panels
+    .map(({ corners }, k) => {
+      const x = corners.reduce((s, c) => s + c[0], 0) / 4;
+      const y = corners.reduce((s, c) => s + c[1], 0) / 4;
+      const size = Math.min(10, Math.hypot(corners[1][0] - corners[0][0], corners[1][1] - corners[0][1]) * 0.6);
+      return `<text x="${fmt(x)}" y="${fmt(y)}" font-size="${fmt(size)}" font-family="Helvetica, Arial, sans-serif" font-weight="700" text-anchor="middle" dominant-baseline="central" fill="#1f6feb" fill-opacity="0.75" stroke="#ffffff" stroke-width="0.4" paint-order="stroke">${n - k}</text>`;
+    })
+    .join('');
 }
 
 function update() {
   const form = readForm();
   showImageFields(form);
-  const { net, offset, sheet } = buildSheet(form, PREVIEW_DPI);
+  const { net, offset, marker, sheet } = buildSheet(form, PREVIEW_DPI);
   currentOffset = offset;
   const d = net.dims;
+  const markerOn = form.marker.face !== 'none' && marker.paths.length > 0;
   $('facts').innerHTML = [
     ['Perimeter, top / bottom', `${mm(d.topPerimeter)} / ${mm(d.bottomPerimeter)}`],
     ['Side length, top / bottom', `${mm(d.topSide)} / ${mm(d.bottomSide)}`],
     ['Panel height on the net', mm(d.panelHeight)],
     ['Folds to a height of', mm(d.foldedHeight)],
+    ...(markerOn ? [['Marker', `id ${form.marker.id}, ${mm((form.marker.size * 9) / 7)} with its white margin`]] : []),
   ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
 
-  const notes = [];
+  const notes = [...marker.errors.map((e) => `<strong>${e}</strong>`), ...marker.warnings];
+  $('export').disabled = marker.errors.length > 0;
   if (!net.fitsCutArea) {
     notes.push('<strong>Part of the net lies outside the 280 × 200 mm cutting area</strong>, so the cutter will not cut all of it. Drag it inside the dashed rectangle, make the shape smaller, or switch a lid off.');
   }
@@ -1284,14 +1560,17 @@ function update() {
   $('notes').innerHTML = notes.map((n) => `<p>${n}</p>`).join('');
   $('notes').hidden = notes.length === 0;
 
-  $('sheet').innerHTML = previewSvg(sheet, 'PaperPhicons sheet preview', { handle: netBounds(net) });
+  $('sheet').innerHTML = previewSvg(sheet, 'PaperPhicons sheet preview', {
+    handle: netBounds(net),
+    overlay: form.sideMode === 'perPanel' ? panelNumbers(net) : '',
+  });
   $('resetPlace').hidden = placed === null;
   view.update(d, {
     fill: form.fill,
     ...sideImages(form),
     topLid: images.topLid,
     bottomLid: images.bottomLid,
-  }, form.lids);
+  }, form.lids, markerOn ? form.marker : null);
 }
 
 let timer;
@@ -1332,21 +1611,11 @@ for (const [field, slot] of [['stripImage', 'strip'], ['topLidImage', 'topLid'],
     update();
   });
 }
-$('panelImages').addEventListener('change', async (event) => {
-  const files = [...(event.target.files ?? [])];
-  if (!files.length) return;
-  try {
-    images.panels = await Promise.all(files.map(loadImage));
-    $('status').textContent = '';
-  } catch {
-    $('status').textContent = 'One of those files could not be read as an image.';
-  }
-  update();
-});
 $('clearImages').addEventListener('click', () => {
   images.strip = images.topLid = images.bottomLid = null;
   images.panels = [];
-  for (const id of ['stripImage', 'panelImages', 'topLidImage', 'bottomLidImage']) $(id).value = '';
+  panelVersion++;
+  for (const id of ['stripImage', 'topLidImage', 'bottomLidImage']) $(id).value = '';
   update();
 });
 
@@ -1356,7 +1625,8 @@ $('export').addEventListener('click', async () => {
   $('status').textContent = 'Preparing files…';
   try {
     await new Promise((resolve) => setTimeout(resolve, 20)); // let the status paint
-    const { sheet } = buildSheet(readForm(), PRINT_DPI);
+    const { sheet, marker } = buildSheet(readForm(), PRINT_DPI);
+    if (marker.errors.length) throw new Error(marker.errors.join(' '));
     const files = buildExportFiles(sheet, $('name').value);
     await downloadAll(files);
     $('status').textContent = `Downloaded ${files.map((f) => f.name).join(', ')}.`;
