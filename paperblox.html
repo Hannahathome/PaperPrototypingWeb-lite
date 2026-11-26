@@ -247,25 +247,15 @@ function crosses(half, kind) {
 const printCrosses = () => crosses(PRINT_CROSS_HALF, 'print');
 const cutCrosses = () => crosses(CUT_CROSS_HALF, 'cut');
 
-/** Length of the alignment ticks in the fold SVG. */
-const ALIGN_TICK = 1;
-
 /**
- * Lite addition: short cuts at the outer ends of the calibration crosses' arms, pointing along
- * the arm. The Brother ScanNCut places an SVG by the box around its lines, not by its page; with
- * these ticks the fold file spans the same box as the calibration file (the whole cutting area),
- * so the template lands where it is on the page. They cut on top of the drawn crosses.
+ * Anchor points at the four corners of the cutting area (Processing drawAnchors_V). Processing's
+ * point() comes out of its SVG writer as a line 0.0001 px long; the cutter makes no cut there,
+ * but the Brother ScanNCut places an SVG by the box around its lines, so with the anchors every
+ * cutter SVG spans the whole cutting area and the template lands where it is on the page.
  */
-function alignmentTicks() {
-  const h = CUT_CROSS_HALF;
-  return CROSS_CENTRES.flatMap(([x, y]) => {
-    const up = y < CUT_AREA.height / 2 ? -1 : 1; // the arm end that reaches the edge of the cutting area
-    const left = x < CUT_AREA.width / 2 ? -1 : 1;
-    return [
-      { kind: 'cut', points: [[x, y + up * h], [x, y + up * (h - ALIGN_TICK)]] },
-      { kind: 'cut', points: [[x + left * h, y], [x + left * (h - ALIGN_TICK), y]] },
-    ];
-  });
+function anchorPoints() {
+  const d = 0.0001 / SVG_PX_PER_MM; // 0.0001 px, as Processing
+  return [[0, 0], [CUT_AREA.width, 0], [0, CUT_AREA.height], [CUT_AREA.width, CUT_AREA.height]].map(([x, y]) => ({ kind: 'cut', points: [[x, y], [x + d, y + d]] }));
 }
 
 // --- SVG in physical millimetres ---
@@ -369,9 +359,9 @@ function buildExportFiles(sheet, name, date = new Date()) {
   const svgBlob = (text) => new Blob([text], { type: 'image/svg+xml' });
   return [
     { name: `${base}_${stamp}.pdf`, blob: buildPdf(sheet).output('blob') },
-    { name: `${base}_fold_${stamp}.svg`, blob: svgBlob(toSvg([...toCutterPaths(sheet.paths), ...alignmentTicks()], CUT_AREA)) },
+    { name: `${base}_fold_${stamp}.svg`, blob: svgBlob(toSvg([...anchorPoints(), ...toCutterPaths(sheet.paths)], CUT_AREA)) },
     // Processing draws the cut crosses at 1 px (96 DPI).
-    { name: `${base}_calib_${stamp}.svg`, blob: svgBlob(toSvg(cutCrosses(), { ...CUT_AREA, strokeWidth: (1 * 25.4) / 96 })) },
+    { name: `${base}_calib_${stamp}.svg`, blob: svgBlob(toSvg([...anchorPoints(), ...cutCrosses()], { ...CUT_AREA, strokeWidth: (1 * 25.4) / 96 })) },
   ];
 }
 
