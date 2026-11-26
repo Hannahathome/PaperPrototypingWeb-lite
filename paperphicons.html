@@ -70,6 +70,8 @@
   #sheet.dragging .handle { cursor: grabbing; }
   #sheet .handle:hover, #sheet.dragging .handle, #sheet:focus-visible .handle { stroke: var(--accent); }
   #sheet:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #sheet .handle:focus { outline: none; }
+  #sheet .handle:focus-visible { stroke: var(--accent); fill: var(--accent); fill-opacity: 0.08; }
 </style>
 </head>
 <body>
@@ -159,7 +161,7 @@
           <span class="key" style="--c: #d1242f">Cut</span>
           <span class="key dashed" style="--c: #1f6feb">Fold</span>
           <span class="key dashed" style="--c: #9aa0a6">Cutting area, 280 × 200 mm</span>
-          <span>Drag the net to move it; arrow keys move it 1 mm (Shift: 5 mm). <button id="resetPlace" type="button" class="link" hidden>Reset position</button></span>
+          <span>Drag the strip or a lid to move it on its own. Arrow keys move the whole net 1 mm (Shift: 5 mm), or the piece you tabbed to. <button id="resetPlace" type="button" class="link" hidden>Reset position</button></span>
         </figcaption>
       </figure>
 
@@ -407,37 +409,50 @@ const stroke = (colour, widthPx, extra = '') =>
   `fill="none" stroke="${colour}" stroke-width="${widthPx}" vector-effect="non-scaling-stroke" ${extra}`.trim();
 const pathElement = (path, style) => `<path d="${pathData(path)}" ${style}/>`;
 
-/**
- * The sheet as an SVG for the page. With `handle` (bounds in mm) the template is drawn in a
- * group that dragOnPreview can move, under a transparent rectangle that catches the pointer.
- * `overlay` is SVG drawn over the template on screen only (it moves with it), never exported.
- */
-function previewSvg(sheet, title, { handle = null, overlay = '' } = {}) {
+/** Preview elements for the sheet's images, paths and labels that pass `keep`, in drawing order. */
+function previewParts(sheet, keep = () => true) {
   const parts = [];
-  for (const image of sheet.images ?? []) {
+  for (const image of (sheet.images ?? []).filter(keep)) {
     parts.push(`<image href="${image.dataUrl}" x="${fmt(image.at[0])}" y="${fmt(image.at[1])}" width="${fmt(image.width)}" height="${fmt(image.height)}" preserveAspectRatio="none"/>`);
   }
-  for (const p of sheet.paths.filter((p) => p.kind === 'print')) parts.push(pathElement(p, p.fill ? `fill="${p.fill}" stroke="none"` : stroke(PREVIEW_COLOURS.print, 1)));
-  for (const p of sheet.paths.filter((p) => p.kind === 'fold')) parts.push(pathElement(p, stroke(PREVIEW_COLOURS.fold, 1.5, 'stroke-dasharray="3 3"')));
-  for (const p of sheet.paths.filter((p) => p.kind === 'cut')) parts.push(pathElement(p, stroke(PREVIEW_COLOURS.cut, 1.5)));
-  for (const label of sheet.labels ?? []) {
+  const paths = sheet.paths.filter(keep);
+  for (const p of paths.filter((p) => p.kind === 'print')) parts.push(pathElement(p, p.fill ? `fill="${p.fill}" stroke="none"` : stroke(PREVIEW_COLOURS.print, 1)));
+  for (const p of paths.filter((p) => p.kind === 'fold')) parts.push(pathElement(p, stroke(PREVIEW_COLOURS.fold, 1.5, 'stroke-dasharray="3 3"')));
+  for (const p of paths.filter((p) => p.kind === 'cut')) parts.push(pathElement(p, stroke(PREVIEW_COLOURS.cut, 1.5)));
+  for (const label of (sheet.labels ?? []).filter(keep)) {
     parts.push(
       `<text x="${fmt(label.at[0])}" y="${fmt(label.at[1])}" font-size="${fmt(label.size)}" font-family="Helvetica, Arial, sans-serif" fill="#000"` +
         `${label.align === 'center' ? ' text-anchor="middle"' : ''}${label.baseline === 'middle' ? ' dominant-baseline="middle"' : ''}>${escapeXml(label.text)}</text>`,
     );
   }
+  return parts;
+}
+
+/**
+ * The sheet as an SVG for the page. With `handle` (bounds in mm) the template is drawn in a
+ * group that dragOnPreview can move, under a transparent rectangle that catches the pointer.
+ * With `pieces` ([{ name, bounds, label }]) each piece gets its own group and handle instead:
+ * images, paths and labels go to the piece named by their `piece` (else the first piece), and
+ * each handle can take the keyboard focus. `overlay` is SVG drawn over the template (the first
+ * piece) on screen only, moving with it; it is never exported.
+ */
+function previewSvg(sheet, title, { handle = null, overlay = '', pieces = null } = {}) {
+  const groups = pieces ?? (handle ? [{ name: null, bounds: handle }] : null);
+  const handleRect = ({ name, bounds: b, label }) =>
+    `<rect class="handle"${name ? ` data-piece="${name}" tabindex="0" role="button" aria-label="${escapeXml(label ?? name)}"` : ''} x="${fmt(b.minX)}" y="${fmt(b.minY)}" width="${fmt(b.maxX - b.minX)}" height="${fmt(b.maxY - b.minY)}" fill="transparent" stroke="none" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`;
+  const body = groups
+    ? groups.flatMap((group, i) => [
+        `<g class="moving"${group.name ? ` data-piece="${group.name}"` : ''}>`,
+        ...previewParts(sheet, (item) => !group.name || (item.piece ?? groups[0].name) === group.name),
+        ...(i === 0 && overlay ? [overlay] : []),
+        handleRect(group),
+        '</g>',
+      ])
+    : [...previewParts(sheet), ...(overlay ? [overlay] : [])];
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.width} ${A4.height}" role="img" aria-label="${escapeXml(title)}">`,
     `<rect x="0" y="0" width="${A4.width}" height="${A4.height}" fill="#ffffff"/>`,
-    ...(handle ? ['<g class="moving">'] : []),
-    ...parts,
-    ...(overlay ? [overlay] : []),
-    ...(handle
-      ? [
-          `<rect class="handle" x="${fmt(handle.minX)}" y="${fmt(handle.minY)}" width="${fmt(handle.maxX - handle.minX)}" height="${fmt(handle.maxY - handle.minY)}" fill="transparent" stroke="none" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`,
-          '</g>',
-        ]
-      : []),
+    ...body,
     `<rect x="0" y="0" width="${CUT_AREA.width}" height="${CUT_AREA.height}" ${stroke(PREVIEW_COLOURS.cutArea, 1, 'stroke-dasharray="4 3"')}/>`,
     ...printCrosses().map((p) => pathElement(p, stroke(PREVIEW_COLOURS.print, 1))),
     ...cutCrosses().map((p) => pathElement(p, stroke(PREVIEW_COLOURS.cut, 1, 'stroke-opacity="0.35"'))),
@@ -448,7 +463,8 @@ function previewSvg(sheet, title, { handle = null, overlay = '' } = {}) {
 /**
  * Move the template by dragging it on the preview in `box` (0.5 mm steps), or with the arrow keys
  * when the preview has focus (1 mm, Shift 5 mm). While dragging only the drawing moves; when the
- * drag ends, `onMove([dx, dy])` gets the move in mm and redraws the sheet.
+ * drag ends, `onMove([dx, dy], piece)` gets the move in mm and redraws the sheet. `piece` is the
+ * name of the dragged or focused piece (see previewSvg), or null for the whole template.
  */
 function dragOnPreview(box, onMove) {
   let drag = null;
@@ -460,8 +476,10 @@ function dragOnPreview(box, onMove) {
   };
   box.addEventListener('pointerdown', (event) => {
     const at = toMm(event);
-    if (event.button !== 0 || !event.target.closest('.handle') || !at) return;
-    drag = { start: at, move: [0, 0], pointer: event.pointerId };
+    const handle = event.target.closest('.handle');
+    if (event.button !== 0 || !handle || !at) return;
+    const piece = handle.dataset.piece ?? null;
+    drag = { start: at, move: [0, 0], pointer: event.pointerId, piece, group: handle.closest('.moving') };
     box.setPointerCapture(event.pointerId);
     box.classList.add('dragging');
     event.preventDefault();
@@ -471,18 +489,18 @@ function dragOnPreview(box, onMove) {
     const at = toMm(event);
     if (!at) return;
     drag.move = [Math.round((at[0] - drag.start[0]) * 2) / 2, Math.round((at[1] - drag.start[1]) * 2) / 2];
-    box.querySelector('.moving')?.setAttribute('transform', `translate(${drag.move[0]} ${drag.move[1]})`);
+    drag.group?.setAttribute('transform', `translate(${drag.move[0]} ${drag.move[1]})`);
   });
   const end = (event) => {
     if (!drag || event.pointerId !== drag.pointer) return;
-    const { move } = drag;
+    const { move, piece, group } = drag;
     drag = null;
     box.classList.remove('dragging');
     if (event.type === 'pointercancel' || (move[0] === 0 && move[1] === 0)) {
-      box.querySelector('.moving')?.removeAttribute('transform');
+      group?.removeAttribute('transform');
       return;
     }
-    onMove(move);
+    onMove(move, piece);
   };
   box.addEventListener('pointerup', end);
   box.addEventListener('pointercancel', end);
@@ -491,7 +509,10 @@ function dragOnPreview(box, onMove) {
     const move = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
     if (!move) return;
     event.preventDefault();
-    onMove(move);
+    const piece = event.target.closest?.('.handle')?.dataset.piece ?? null;
+    onMove(move, piece);
+    // The preview was redrawn: keep the focus on the same piece.
+    if (piece) box.querySelector(`.handle[data-piece="${piece}"]`)?.focus();
   });
 }
 
@@ -737,7 +758,13 @@ function buildNet(input, lids = { top: true, bottom: true }) {
   const origin = PATTERN_ORIGIN;
   const move = (p) => [p[0] + origin[0], p[1] + origin[1]];
   const moveLid = (lid) => ({ centre: move(lid.centre), corners: lid.corners.map(move) });
-  const paths = [...strip.paths, ...(lids.bottom ? bottom.paths : []), ...(lids.top ? top.paths : [])];
+  // Lite addition: each path names its piece, so a lid can be moved on its own (moveLid).
+  const tag = (piece) => (path) => ({ ...path, piece });
+  const paths = [
+    ...strip.paths.map(tag('strip')),
+    ...(lids.bottom ? bottom.paths.map(tag('bottomLid')) : []),
+    ...(lids.top ? top.paths.map(tag('topLid')) : []),
+  ];
   const sheet = { paths: translatePaths(paths, origin) };
   return {
     dims,
@@ -772,6 +799,60 @@ function translateNet(net, [dx, dy]) {
     topLid: lid(net.topLid),
     fitsCutArea: fitsCutArea(sheet),
   };
+}
+
+/**
+ * Lite addition: the net with one lid ('topLid' or 'bottomLid') moved by [dx, dy] mm, apart
+ * from the strip and the other lid.
+ */
+function moveLid(net, piece, [dx, dy]) {
+  if (dx === 0 && dy === 0) return net;
+  const move = ([x, y]) => [x + dx, y + dy];
+  const paths = net.sheet.paths.map((path) => (path.piece === piece ? { ...path, points: path.points.map(move) } : path));
+  const sheet = { ...net.sheet, paths };
+  const lid = net[piece];
+  return { ...net, sheet, [piece]: { centre: move(lid.centre), corners: lid.corners.map(move) }, fitsCutArea: fitsCutArea(sheet) };
+}
+
+/** The pieces of a net on the sheet: strip, then the lids that are on. */
+const netPieces = (net) => ['strip', ...(net.lids.bottom ? ['bottomLid'] : []), ...(net.lids.top ? ['topLid'] : [])];
+
+/** True when segment a1–a2 crosses segment b1–b2. Touching ends do not count: pieces may share a cut line. */
+function segmentsCross(a1, a2, b1, b2) {
+  const side = (p, q, r) => {
+    const v = (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+    return Math.abs(v) < 1e-9 ? 0 : Math.sign(v);
+  };
+  return side(b1, b2, a1) * side(b1, b2, a2) < 0 && side(a1, a2, b1) * side(a1, a2, b2) < 0;
+}
+
+/**
+ * Pairs of pieces that overlap on the sheet, as [pieceA, pieceB]: their cut or fold lines cross,
+ * or a lid lies inside a side panel (or the other way round). Overlapping pieces cannot both be cut.
+ */
+function overlappingPieces(net) {
+  const segments = (piece) =>
+    net.sheet.paths.filter((p) => p.piece === piece && p.kind !== 'print').flatMap((p) => {
+      const pts = p.closed ? [...p.points, p.points[0]] : p.points;
+      return pts.slice(1).map((q, i) => [pts[i], q]);
+    });
+  const outline = (piece) => (piece === 'strip' ? net.panels.map((p) => p.corners) : [net[piece].corners]);
+  const centreOf = (corners) => [corners.reduce((s, c) => s + c[0], 0) / corners.length, corners.reduce((s, c) => s + c[1], 0) / corners.length];
+  const pieces = netPieces(net);
+  const pairs = [];
+  for (let i = 0; i < pieces.length; i++) {
+    for (let j = i + 1; j < pieces.length; j++) {
+      const [a, b] = [pieces[i], pieces[j]];
+      const sa = segments(a);
+      const sb = segments(b);
+      const box = (s) => boundsOf([{ points: s.flat() }]);
+      const [ba, bb] = [box(sa), box(sb)];
+      if (ba.maxX < bb.minX || bb.maxX < ba.minX || ba.maxY < bb.minY || bb.maxY < ba.minY) continue;
+      const inside = (from, to) => outline(from).some((poly) => outline(to).some((other) => insideConvex(centreOf(poly), other)));
+      if (inside(a, b) || inside(b, a) || sa.some(([p, q]) => sb.some(([r, s]) => segmentsCross(p, q, r, s)))) pairs.push([a, b]);
+    }
+  }
+  return pairs;
 }
 
 /** Where a net starts, as an offset from where buildNet puts it: none when it fits the cutting area, else centred on it. */
@@ -880,10 +961,10 @@ function lidTriangles(lid, aspect, slot, density = TESSELLATION_DENSITY) {
 
 /** Filled print paths for the panels and the lids that are on the sheet. */
 function fillPaths(net, colour) {
-  const lids = [...(net.lids.bottom ? [net.bottomLid] : []), ...(net.lids.top ? [net.topLid] : [])];
+  const lids = [...(net.lids.bottom ? ['bottomLid'] : []), ...(net.lids.top ? ['topLid'] : [])];
   return [
-    ...net.panels.map((panel) => ({ kind: 'print', closed: true, fill: colour, points: [...panel.corners] })),
-    ...lids.map((lid) => ({ kind: 'print', closed: true, fill: colour, points: [...lid.corners] })),
+    ...net.panels.map((panel) => ({ kind: 'print', closed: true, fill: colour, points: [...panel.corners], piece: 'strip' })),
+    ...lids.map((piece) => ({ kind: 'print', closed: true, fill: colour, points: [...net[piece].corners], piece })),
   ];
 }
 
@@ -1007,8 +1088,9 @@ function buildMarker(net, { face, id, size }) {
   if (!box.every((p) => insideConvex(p, place.polygon))) {
     result.warnings.push(`The marker with its white margin is ${outer.toFixed(1)} mm, larger than the ${face === 'top' ? 'top lid' : 'side panel'}; cameras need the white margin to detect it. Use a smaller marker or a bigger shape.`);
   }
-  result.paths = markerPaths(id, size, place.centre, place.right);
-  if (face === 'top') result.labels = [markerLabel(id, size, place.centre)];
+  const piece = face === 'top' ? 'topLid' : 'strip';
+  result.paths = markerPaths(id, size, place.centre, place.right).map((path) => ({ ...path, piece }));
+  if (face === 'top') result.labels = [{ ...markerLabel(id, size, place.centre), piece }];
   return result;
 }
 
@@ -1084,13 +1166,24 @@ function rasteriseTriangles(triangles, bounds, dpi, transparent) {
   return { canvas, at: [bounds.minX, bounds.minY], width, height };
 }
 
-/** The printable sheet: fills, the net, and images rasterised at `dpi`, clipped to the page. */
+/**
+ * The printable sheet: fills, the net, and images rasterised at `dpi`, clipped to the page. The
+ * print gets one image; the preview gets a transparent image per piece, so a lid's image moves
+ * with the lid while it is dragged.
+ */
 function printableSheet(net, art, imageFor, dpi) {
   const triangles = art.triangles.flatMap((t) => {
     const image = imageFor(t.slot);
-    return image ? [{ points: t.points, uvs: t.uvs, image }] : [];
+    return image ? [{ points: t.points, uvs: t.uvs, image, piece: t.slot.kind === 'topLid' || t.slot.kind === 'bottomLid' ? t.slot.kind : 'strip' }] : [];
   });
   const forPrint = dpi === PRINT_DPI;
+  const groups = forPrint ? [triangles] : netPieces(net).map((piece) => triangles.filter((t) => t.piece === piece));
+  const images = groups.flatMap((group) => rasterImage(group, dpi, forPrint));
+  return { paths: [...art.fills, ...net.sheet.paths], images };
+}
+
+/** Triangles rasterised into one image (with the piece of its triangles when they share one), or none. */
+function rasterImage(triangles, dpi, forPrint) {
   let images = [];
   if (triangles.length) {
     const xs = triangles.flatMap((t) => t.points.map((p) => p[0]));
@@ -1104,10 +1197,11 @@ function printableSheet(net, art, imageFor, dpi) {
     if (page.maxX > page.minX && page.maxY > page.minY) {
       const r = rasteriseTriangles(triangles, page, dpi, !forPrint);
       // JPEG keeps 300 DPI pages small; paper is white anyway.
-      images = [{ dataUrl: r.canvas.toDataURL(forPrint ? 'image/jpeg' : 'image/png', 0.92), at: r.at, width: r.width, height: r.height }];
+      const piece = triangles.every((t) => t.piece === triangles[0].piece) ? { piece: triangles[0].piece } : {};
+      images = [{ dataUrl: r.canvas.toDataURL(forPrint ? 'image/jpeg' : 'image/png', 0.92), at: r.at, width: r.width, height: r.height, ...piece }];
     }
   }
-  return { paths: [...art.fills, ...net.sheet.paths], images };
+  return images;
 }
 
 // =============================================================================================
@@ -1412,12 +1506,17 @@ function sideImages(form) {
 let placed = null;
 /** The offset of the net in the preview, so a drag continues from where it is shown. */
 let currentOffset = [0, 0];
+/** How far each lid was dragged on its own, in mm, on top of the net's offset. */
+const lidMoves = { topLid: [0, 0], bottomLid: [0, 0] };
+const PIECE_NAMES = { strip: 'side strip', topLid: 'top lid', bottomLid: 'bottom lid' };
+const lidsMoved = () => Object.values(lidMoves).some(([x, y]) => x !== 0 || y !== 0);
 
-/** The sheet for the current form at `dpi`, with the net's offset. */
+/** The sheet for the current form at `dpi`, with the net's offset and the lids' own moves. */
 function buildSheet(form, dpi) {
   const raw = buildNet(form.input, form.lids);
   const offset = placed ?? startOffset(raw);
-  const net = translateNet(raw, offset);
+  let net = translateNet(raw, offset);
+  for (const piece of ['bottomLid', 'topLid']) if (net.lids[piece === 'topLid' ? 'top' : 'bottom']) net = moveLid(net, piece, lidMoves[piece]);
   const side = sideImages(form);
   const art = buildArtwork(net, {
     fill: form.fill,
@@ -1549,6 +1648,9 @@ function update() {
   if (!net.fitsCutArea) {
     notes.push('<strong>Part of the net lies outside the 280 × 200 mm cutting area</strong>, so the cutter will not cut all of it. Drag it inside the dashed rectangle, make the shape smaller, or switch a lid off.');
   }
+  for (const [a, b] of overlappingPieces(net)) {
+    notes.push(`<strong>The ${PIECE_NAMES[a]} and the ${PIECE_NAMES[b]} overlap</strong>, so they cannot both be cut out. Drag them apart.`);
+  }
   if (Math.abs(d.foldedHeight - d.height) > 0.05) {
     notes.push(`This frustum folds to <strong>${mm(d.foldedHeight)}</strong>, not the ${mm(d.height)} you entered, because of how the frustum panels are built.`);
   }
@@ -1561,10 +1663,14 @@ function update() {
   $('notes').hidden = notes.length === 0;
 
   $('sheet').innerHTML = previewSvg(sheet, 'PaperPhicons sheet preview', {
-    handle: netBounds(net),
+    pieces: netPieces(net).map((name) => ({
+      name,
+      bounds: boundsOf(net.sheet.paths.filter((p) => p.piece === name && p.kind !== 'print')),
+      label: `Move the ${PIECE_NAMES[name]}`,
+    })),
     overlay: form.sideMode === 'perPanel' ? panelNumbers(net) : '',
   });
-  $('resetPlace').hidden = placed === null;
+  $('resetPlace').hidden = placed === null && !lidsMoved();
   view.update(d, {
     fill: form.fill,
     ...sideImages(form),
@@ -1579,11 +1685,23 @@ $('controls').addEventListener('input', schedule);
 $('controls').addEventListener('change', schedule);
 $('resetView').addEventListener('click', () => { view.reset(); update(); });
 
-dragOnPreview($('sheet'), ([dx, dy]) => {
-  placed = [currentOffset[0] + dx, currentOffset[1] + dy];
+// A lid moves on its own; the strip moves on its own too (the lids stay put); with the whole
+// preview focused, the arrow keys move everything together.
+dragOnPreview($('sheet'), ([dx, dy], piece) => {
+  if (piece === 'topLid' || piece === 'bottomLid') {
+    lidMoves[piece] = [lidMoves[piece][0] + dx, lidMoves[piece][1] + dy];
+  } else {
+    placed = [currentOffset[0] + dx, currentOffset[1] + dy];
+    if (piece === 'strip') for (const lid of Object.keys(lidMoves)) lidMoves[lid] = [lidMoves[lid][0] - dx, lidMoves[lid][1] - dy];
+  }
   update();
 });
-$('resetPlace').addEventListener('click', () => { placed = null; update(); });
+$('resetPlace').addEventListener('click', () => {
+  placed = null;
+  lidMoves.topLid = [0, 0];
+  lidMoves.bottomLid = [0, 0];
+  update();
+});
 
 async function loadImage(file) {
   const dataUrl = await new Promise((resolve, reject) => {

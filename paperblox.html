@@ -61,6 +61,8 @@
   #sheet.dragging .handle { cursor: grabbing; }
   #sheet .handle:hover, #sheet.dragging .handle, #sheet:focus-visible .handle { stroke: var(--accent); }
   #sheet:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #sheet .handle:focus { outline: none; }
+  #sheet .handle:focus-visible { stroke: var(--accent); fill: var(--accent); fill-opacity: 0.08; }
 </style>
 </head>
 <body>
@@ -365,37 +367,50 @@ const stroke = (colour, widthPx, extra = '') =>
   `fill="none" stroke="${colour}" stroke-width="${widthPx}" vector-effect="non-scaling-stroke" ${extra}`.trim();
 const pathElement = (path, style) => `<path d="${pathData(path)}" ${style}/>`;
 
-/**
- * The sheet as an SVG for the page. With `handle` (bounds in mm) the template is drawn in a
- * group that dragOnPreview can move, under a transparent rectangle that catches the pointer.
- * `overlay` is SVG drawn over the template on screen only (it moves with it), never exported.
- */
-function previewSvg(sheet, title, { handle = null, overlay = '' } = {}) {
+/** Preview elements for the sheet's images, paths and labels that pass `keep`, in drawing order. */
+function previewParts(sheet, keep = () => true) {
   const parts = [];
-  for (const image of sheet.images ?? []) {
+  for (const image of (sheet.images ?? []).filter(keep)) {
     parts.push(`<image href="${image.dataUrl}" x="${fmt(image.at[0])}" y="${fmt(image.at[1])}" width="${fmt(image.width)}" height="${fmt(image.height)}" preserveAspectRatio="none"/>`);
   }
-  for (const p of sheet.paths.filter((p) => p.kind === 'print')) parts.push(pathElement(p, p.fill ? `fill="${p.fill}" stroke="none"` : stroke(PREVIEW_COLOURS.print, 1)));
-  for (const p of sheet.paths.filter((p) => p.kind === 'fold')) parts.push(pathElement(p, stroke(PREVIEW_COLOURS.fold, 1.5, 'stroke-dasharray="3 3"')));
-  for (const p of sheet.paths.filter((p) => p.kind === 'cut')) parts.push(pathElement(p, stroke(PREVIEW_COLOURS.cut, 1.5)));
-  for (const label of sheet.labels ?? []) {
+  const paths = sheet.paths.filter(keep);
+  for (const p of paths.filter((p) => p.kind === 'print')) parts.push(pathElement(p, p.fill ? `fill="${p.fill}" stroke="none"` : stroke(PREVIEW_COLOURS.print, 1)));
+  for (const p of paths.filter((p) => p.kind === 'fold')) parts.push(pathElement(p, stroke(PREVIEW_COLOURS.fold, 1.5, 'stroke-dasharray="3 3"')));
+  for (const p of paths.filter((p) => p.kind === 'cut')) parts.push(pathElement(p, stroke(PREVIEW_COLOURS.cut, 1.5)));
+  for (const label of (sheet.labels ?? []).filter(keep)) {
     parts.push(
       `<text x="${fmt(label.at[0])}" y="${fmt(label.at[1])}" font-size="${fmt(label.size)}" font-family="Helvetica, Arial, sans-serif" fill="#000"` +
         `${label.align === 'center' ? ' text-anchor="middle"' : ''}${label.baseline === 'middle' ? ' dominant-baseline="middle"' : ''}>${escapeXml(label.text)}</text>`,
     );
   }
+  return parts;
+}
+
+/**
+ * The sheet as an SVG for the page. With `handle` (bounds in mm) the template is drawn in a
+ * group that dragOnPreview can move, under a transparent rectangle that catches the pointer.
+ * With `pieces` ([{ name, bounds, label }]) each piece gets its own group and handle instead:
+ * images, paths and labels go to the piece named by their `piece` (else the first piece), and
+ * each handle can take the keyboard focus. `overlay` is SVG drawn over the template (the first
+ * piece) on screen only, moving with it; it is never exported.
+ */
+function previewSvg(sheet, title, { handle = null, overlay = '', pieces = null } = {}) {
+  const groups = pieces ?? (handle ? [{ name: null, bounds: handle }] : null);
+  const handleRect = ({ name, bounds: b, label }) =>
+    `<rect class="handle"${name ? ` data-piece="${name}" tabindex="0" role="button" aria-label="${escapeXml(label ?? name)}"` : ''} x="${fmt(b.minX)}" y="${fmt(b.minY)}" width="${fmt(b.maxX - b.minX)}" height="${fmt(b.maxY - b.minY)}" fill="transparent" stroke="none" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`;
+  const body = groups
+    ? groups.flatMap((group, i) => [
+        `<g class="moving"${group.name ? ` data-piece="${group.name}"` : ''}>`,
+        ...previewParts(sheet, (item) => !group.name || (item.piece ?? groups[0].name) === group.name),
+        ...(i === 0 && overlay ? [overlay] : []),
+        handleRect(group),
+        '</g>',
+      ])
+    : [...previewParts(sheet), ...(overlay ? [overlay] : [])];
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.width} ${A4.height}" role="img" aria-label="${escapeXml(title)}">`,
     `<rect x="0" y="0" width="${A4.width}" height="${A4.height}" fill="#ffffff"/>`,
-    ...(handle ? ['<g class="moving">'] : []),
-    ...parts,
-    ...(overlay ? [overlay] : []),
-    ...(handle
-      ? [
-          `<rect class="handle" x="${fmt(handle.minX)}" y="${fmt(handle.minY)}" width="${fmt(handle.maxX - handle.minX)}" height="${fmt(handle.maxY - handle.minY)}" fill="transparent" stroke="none" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`,
-          '</g>',
-        ]
-      : []),
+    ...body,
     `<rect x="0" y="0" width="${CUT_AREA.width}" height="${CUT_AREA.height}" ${stroke(PREVIEW_COLOURS.cutArea, 1, 'stroke-dasharray="4 3"')}/>`,
     ...printCrosses().map((p) => pathElement(p, stroke(PREVIEW_COLOURS.print, 1))),
     ...cutCrosses().map((p) => pathElement(p, stroke(PREVIEW_COLOURS.cut, 1, 'stroke-opacity="0.35"'))),
@@ -406,7 +421,8 @@ function previewSvg(sheet, title, { handle = null, overlay = '' } = {}) {
 /**
  * Move the template by dragging it on the preview in `box` (0.5 mm steps), or with the arrow keys
  * when the preview has focus (1 mm, Shift 5 mm). While dragging only the drawing moves; when the
- * drag ends, `onMove([dx, dy])` gets the move in mm and redraws the sheet.
+ * drag ends, `onMove([dx, dy], piece)` gets the move in mm and redraws the sheet. `piece` is the
+ * name of the dragged or focused piece (see previewSvg), or null for the whole template.
  */
 function dragOnPreview(box, onMove) {
   let drag = null;
@@ -418,8 +434,10 @@ function dragOnPreview(box, onMove) {
   };
   box.addEventListener('pointerdown', (event) => {
     const at = toMm(event);
-    if (event.button !== 0 || !event.target.closest('.handle') || !at) return;
-    drag = { start: at, move: [0, 0], pointer: event.pointerId };
+    const handle = event.target.closest('.handle');
+    if (event.button !== 0 || !handle || !at) return;
+    const piece = handle.dataset.piece ?? null;
+    drag = { start: at, move: [0, 0], pointer: event.pointerId, piece, group: handle.closest('.moving') };
     box.setPointerCapture(event.pointerId);
     box.classList.add('dragging');
     event.preventDefault();
@@ -429,18 +447,18 @@ function dragOnPreview(box, onMove) {
     const at = toMm(event);
     if (!at) return;
     drag.move = [Math.round((at[0] - drag.start[0]) * 2) / 2, Math.round((at[1] - drag.start[1]) * 2) / 2];
-    box.querySelector('.moving')?.setAttribute('transform', `translate(${drag.move[0]} ${drag.move[1]})`);
+    drag.group?.setAttribute('transform', `translate(${drag.move[0]} ${drag.move[1]})`);
   });
   const end = (event) => {
     if (!drag || event.pointerId !== drag.pointer) return;
-    const { move } = drag;
+    const { move, piece, group } = drag;
     drag = null;
     box.classList.remove('dragging');
     if (event.type === 'pointercancel' || (move[0] === 0 && move[1] === 0)) {
-      box.querySelector('.moving')?.removeAttribute('transform');
+      group?.removeAttribute('transform');
       return;
     }
-    onMove(move);
+    onMove(move, piece);
   };
   box.addEventListener('pointerup', end);
   box.addEventListener('pointercancel', end);
@@ -449,7 +467,10 @@ function dragOnPreview(box, onMove) {
     const move = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
     if (!move) return;
     event.preventDefault();
-    onMove(move);
+    const piece = event.target.closest?.('.handle')?.dataset.piece ?? null;
+    onMove(move, piece);
+    // The preview was redrawn: keep the focus on the same piece.
+    if (piece) box.querySelector(`.handle[data-piece="${piece}"]`)?.focus();
   });
 }
 
