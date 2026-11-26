@@ -289,6 +289,27 @@ function crosses(half, kind) {
 const printCrosses = () => crosses(PRINT_CROSS_HALF, 'print');
 const cutCrosses = () => crosses(CUT_CROSS_HALF, 'cut');
 
+/** Length of the alignment ticks in the fold SVG. */
+const ALIGN_TICK = 1;
+
+/**
+ * Lite addition: short cuts at the outer ends of the calibration crosses' arms, pointing along
+ * the arm. The Brother ScanNCut places an SVG by the box around its lines, not by its page; with
+ * these ticks the fold file spans the same box as the calibration file (the whole cutting area),
+ * so the template lands where it is on the page. They cut on top of the drawn crosses.
+ */
+function alignmentTicks() {
+  const h = CUT_CROSS_HALF;
+  return CROSS_CENTRES.flatMap(([x, y]) => {
+    const up = y < CUT_AREA.height / 2 ? -1 : 1; // the arm end that reaches the edge of the cutting area
+    const left = x < CUT_AREA.width / 2 ? -1 : 1;
+    return [
+      { kind: 'cut', points: [[x, y + up * h], [x, y + up * (h - ALIGN_TICK)]] },
+      { kind: 'cut', points: [[x + left * h, y], [x + left * (h - ALIGN_TICK), y]] },
+    ];
+  });
+}
+
 // --- SVG in physical millimetres ---
 
 /** Cut and fold line width: 0.5 px at 96 DPI, as Processing's cut files. */
@@ -308,13 +329,24 @@ function pathData(path) {
   return moves.join(' ');
 }
 
-/** A cutter SVG: width/height in mm and a viewBox in mm, every path stroked black, no fill. */
+/** SVG user units per mm: pixels at 96 DPI, as Processing's cut files (vinyl DPI 96). */
+const SVG_PX_PER_MM = 96 / 25.4;
+
+/**
+ * A cutter SVG as Processing writes it: width/height in mm, coordinates and viewBox in pixels at
+ * 96 DPI (the Brother ScanNCut places files in mm units wrongly). Every path stroked black, no
+ * fill. Unlike Processing, the viewBox keeps its decimals, so the scale is exact.
+ */
 function toSvg(paths, { width, height, strokeWidth = CUT_STROKE_MM }) {
-  const body = paths.filter((p) => p.points.length > 1).map((p) => `  <path d="${pathData(p)}"/>`).join('\n');
+  const s = SVG_PX_PER_MM;
+  const body = paths
+    .filter((p) => p.points.length > 1)
+    .map((p) => `  <path d="${pathData({ ...p, points: p.points.map(([x, y]) => [x * s, y * s]) })}"/>`)
+    .join('\n');
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${fmt(width)}mm" height="${fmt(height)}mm" viewBox="0 0 ${fmt(width)} ${fmt(height)}">`,
-    `<g fill="none" stroke="#000" stroke-width="${fmt(strokeWidth)}" stroke-linecap="butt" stroke-linejoin="miter">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${fmt(width)}mm" height="${fmt(height)}mm" viewBox="0 0 ${fmt(width * s)} ${fmt(height * s)}">`,
+    `<g fill="none" stroke="#000" stroke-width="${fmt(strokeWidth * s)}" stroke-linecap="butt" stroke-linejoin="miter">`,
     body,
     '</g>',
     '</svg>',
@@ -379,7 +411,7 @@ function buildExportFiles(sheet, name, date = new Date()) {
   const svgBlob = (text) => new Blob([text], { type: 'image/svg+xml' });
   return [
     { name: `${base}_${stamp}.pdf`, blob: buildPdf(sheet).output('blob') },
-    { name: `${base}_fold_${stamp}.svg`, blob: svgBlob(toSvg(toCutterPaths(sheet.paths), CUT_AREA)) },
+    { name: `${base}_fold_${stamp}.svg`, blob: svgBlob(toSvg([...toCutterPaths(sheet.paths), ...alignmentTicks()], CUT_AREA)) },
     // Processing draws the cut crosses at 1 px (96 DPI).
     { name: `${base}_calib_${stamp}.svg`, blob: svgBlob(toSvg(cutCrosses(), { ...CUT_AREA, strokeWidth: (1 * 25.4) / 96 })) },
   ];
